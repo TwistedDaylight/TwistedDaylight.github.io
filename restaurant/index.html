@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🍕 Yummy Town Restaurant!</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --red:    #FF4757; --yellow: #FFD32A; --green: #2ED573;
+      --blue:   #1E90FF; --orange: #FF6B35; --purple: #A55EEA;
+      --cream:  #FFF9EC; --dark:   #2F2E41;
+    }
+    body { font-family: 'Nunito', sans-serif; background: var(--cream); min-height: 100vh; overflow-x: hidden; }
+
+    /* ── SCREENS ──────────────────────────────── */
+    .screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; padding: 20px 16px; }
+    .screen.active { display: flex; }
+
+    /* ── WELCOME ──────────────────────────────── */
+    #screen-welcome {
+      background: linear-gradient(160deg, #FFD32A 0%, #FF6B35 100%);
+      justify-content: center; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    #screen-welcome::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(circle at 20% 80%, rgba(255,255,255,.18) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 20%, rgba(255,255,255,.18) 0%, transparent 50%);
+    }
+    .welcome-sign {
+      background: white; border-radius: 32px; padding: 30px 32px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.18); position: relative;
+      z-index: 1; max-width: 420px; width: 100%;
+    }
+    .welcome-sign .big-emoji { font-size: 72px; display: block; margin-bottom: 6px; animation: bounce 1.2s infinite; }
+    .welcome-sign h1 { font-family: 'Fredoka One', sans-serif; font-size: 2.4rem; color: var(--orange); line-height: 1.1; }
+    .welcome-sign > p { font-size: 1.1rem; color: #888; margin: 8px 0 18px; font-weight: 700; }
+    .floating-food { position: absolute; font-size: 44px; animation: floatAround 6s ease-in-out infinite; opacity: .7; z-index: 0; }
+    .edit-link { display: inline-block; margin-top: 14px; font-size: .82rem; color: #ccc; cursor: pointer; text-decoration: underline; font-weight: 700; transition: color .2s; }
+    .edit-link:hover { color: var(--orange); }
+
+    /* People selector */
+    .people-box {
+      background: #FFF4E0; border-radius: 20px; padding: 14px 18px;
+      margin: 0 0 16px; border: 2px solid #FFD32A;
+    }
+    .people-box .pb-label { font-family: 'Fredoka One', sans-serif; font-size: 1rem; color: var(--dark); margin-bottom: 10px; }
+    .people-row { display: flex; align-items: center; justify-content: center; gap: 12px; }
+    .people-emojis { font-size: 26px; min-height: 34px; letter-spacing: 2px; flex: 1; text-align: center; }
+    .counter-btn {
+      background: var(--orange); border: none; border-radius: 12px;
+      width: 38px; height: 38px; font-size: 1.4rem; color: white;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-weight: 900; box-shadow: 0 3px 10px rgba(255,107,53,.35);
+      transition: transform .15s;
+    }
+    .counter-btn:hover { transform: scale(1.12); }
+    .counter-btn:disabled { background: #ddd; box-shadow: none; cursor: default; }
+    .people-num { font-family: 'Fredoka One', sans-serif; font-size: 1.8rem; color: var(--orange); min-width: 32px; text-align: center; }
+
+    /* Budget preview on welcome */
+    .budget-preview {
+      background: linear-gradient(135deg, var(--green) 0%, #00c853 100%);
+      border-radius: 16px; padding: 12px 16px; margin-bottom: 18px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .budget-preview .bp-label { color: rgba(255,255,255,.85); font-weight: 900; font-size: .9rem; }
+    .budget-preview .bp-amount { font-family: 'Fredoka One', sans-serif; font-size: 1.8rem; color: white; }
+    .budget-preview .bp-calc { font-size: .78rem; color: rgba(255,255,255,.7); font-weight: 700; }
+
+    /* ── MENU ─────────────────────────────────── */
+    #screen-menu { background: var(--cream); padding-bottom: 40px; }
+    .top-bar {
+      width: 100%; max-width: 640px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--red); border-radius: 20px; padding: 12px 16px;
+      margin-bottom: 10px; box-shadow: 0 4px 16px rgba(255,71,87,.3);
+    }
+    .top-bar h2 { font-family: 'Fredoka One', sans-serif; color: white; font-size: 1.5rem; }
+    .cart-btn {
+      background: var(--yellow); border: none; border-radius: 14px;
+      padding: 9px 16px; font-family: 'Fredoka One', sans-serif; font-size: 1rem;
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+      box-shadow: 0 3px 10px rgba(0,0,0,.15); transition: transform .15s;
+    }
+    .cart-btn:hover { transform: scale(1.07); }
+    .cart-badge {
+      background: var(--red); color: white; border-radius: 50%;
+      width: 24px; height: 24px; display: flex; align-items: center;
+      justify-content: center; font-size: .8rem; font-weight: 900;
+    }
+
+    /* Budget bar */
+    .budget-bar-wrap {
+      width: 100%; max-width: 640px;
+      background: white; border-radius: 18px; padding: 12px 16px;
+      margin-bottom: 14px; box-shadow: 0 3px 12px rgba(0,0,0,.08);
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .budget-bar-top {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .budget-bar-top .bbt-label { font-weight: 900; font-size: .88rem; color: #666; }
+    .budget-bar-top .bbt-amounts { font-family: 'Fredoka One', sans-serif; font-size: 1.05rem; }
+    .budget-bar-track {
+      background: #eee; border-radius: 99px; height: 14px; overflow: hidden; position: relative;
+    }
+    .budget-bar-fill {
+      height: 100%; border-radius: 99px;
+      transition: width .5s ease, background .5s ease;
+      background: var(--green);
+    }
+    .budget-bar-fill.warn  { background: var(--yellow); }
+    .budget-bar-fill.danger{ background: var(--red); }
+    .budget-reset-row { display: flex; align-items: center; justify-content: space-between; }
+    .budget-people-info { font-size: .78rem; color: #aaa; font-weight: 700; }
+    .reset-budget-btn {
+      background: none; border: 2px solid var(--blue); color: var(--blue);
+      border-radius: 10px; padding: 4px 12px;
+      font-family: 'Fredoka One', sans-serif; font-size: .85rem;
+      cursor: pointer; transition: all .2s;
+    }
+    .reset-budget-btn:hover { background: var(--blue); color: white; }
+
+    .section-title {
+      font-family: 'Fredoka One', sans-serif; font-size: 1.45rem; color: var(--dark);
+      width: 100%; max-width: 640px; margin: 14px 0 10px; padding-left: 4px;
+    }
+    .food-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
+      gap: 12px; width: 100%; max-width: 640px;
+    }
+    .food-card {
+      background: white; border-radius: 22px; padding: 16px 10px 12px;
+      text-align: center; box-shadow: 0 4px 14px rgba(0,0,0,.09);
+      cursor: pointer; transition: transform .18s, box-shadow .18s;
+      border: 3px solid transparent; position: relative; overflow: hidden;
+    }
+    .food-card:hover { transform: translateY(-5px) scale(1.03); box-shadow: 0 10px 24px rgba(0,0,0,.14); }
+    .food-card:active { transform: scale(.97); }
+    .food-card .food-emoji { font-size: 48px; display: block; margin-bottom: 5px; }
+    .food-card .food-name  { font-weight: 900; font-size: .9rem; color: var(--dark); }
+    .food-card .food-price { font-family: 'Fredoka One', sans-serif; color: var(--green); font-size: 1.05rem; margin-top: 3px; }
+    .food-card .add-badge  {
+      position: absolute; top: 7px; right: 7px;
+      background: var(--green); color: white; border-radius: 50%;
+      width: 22px; height: 22px; font-size: .7rem; font-weight: 900;
+      display: none; align-items: center; justify-content: center;
+    }
+    .food-card.in-cart { border-color: var(--green); }
+    .food-card.in-cart .add-badge { display: flex; }
+    @keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.18)} 100%{transform:scale(1)} }
+    .food-card.popping { animation: pop .25s ease; }
+
+    /* ── CART ─────────────────────────────────── */
+    #screen-cart { background: var(--cream); }
+    .cart-header {
+      width: 100%; max-width: 520px; background: var(--blue); border-radius: 20px;
+      padding: 14px 20px; color: white; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 4px 16px rgba(30,144,255,.3);
+    }
+    .cart-header h2 { font-family: 'Fredoka One', sans-serif; font-size: 1.5rem; }
+    .back-btn {
+      background: rgba(255,255,255,.25); border: none; border-radius: 12px;
+      padding: 7px 13px; color: white; font-family: 'Fredoka One', sans-serif;
+      font-size: .95rem; cursor: pointer; transition: background .2s;
+    }
+    .back-btn:hover { background: rgba(255,255,255,.4); }
+    .cart-list { width: 100%; max-width: 520px; }
+    .cart-item {
+      background: white; border-radius: 18px; padding: 12px 16px;
+      margin-bottom: 10px; display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 3px 12px rgba(0,0,0,.07);
+    }
+    .cart-item .item-emoji { font-size: 36px; }
+    .cart-item .item-info  { flex: 1; }
+    .cart-item .item-name  { font-weight: 900; font-size: .95rem; }
+    .cart-item .item-price { color: var(--green); font-family: 'Fredoka One', sans-serif; font-size: .95rem; }
+    .qty-controls { display: flex; align-items: center; gap: 7px; }
+    .qty-btn {
+      background: var(--yellow); border: none; border-radius: 10px;
+      width: 32px; height: 32px; font-size: 1.2rem; cursor: pointer; font-weight: 900;
+      display: flex; align-items: center; justify-content: center; transition: transform .1s;
+    }
+    .qty-btn:hover { transform: scale(1.15); }
+    .qty-num { font-family: 'Fredoka One', sans-serif; font-size: 1.1rem; min-width: 22px; text-align: center; }
+    .cart-empty { text-align: center; font-size: 1.05rem; color: #aaa; padding: 36px 0; }
+    .total-box {
+      background: var(--dark); color: white; border-radius: 18px; padding: 16px 20px;
+      width: 100%; max-width: 520px; margin: 12px 0;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .total-box span { font-family: 'Fredoka One', sans-serif; font-size: 1.2rem; }
+    .total-box .total-amount { font-size: 1.9rem; color: var(--yellow); }
+
+    /* Budget status in cart */
+    .budget-status-box {
+      width: 100%; max-width: 520px; border-radius: 16px;
+      padding: 12px 16px; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 900; font-size: .95rem;
+    }
+    .budget-status-box.ok      { background: #E8FFF3; color: #1a7a45; border: 2px solid var(--green); }
+    .budget-status-box.over    { background: #FFF0F0; color: #c0392b; border: 2px solid var(--red); }
+    .budget-status-box .bsb-icon { font-size: 1.6rem; }
+
+    /* ── PAYMENT ──────────────────────────────── */
+    #screen-payment { background: linear-gradient(160deg, #A55EEA 0%, #1E90FF 100%); justify-content: center; }
+    .payment-card {
+      background: white; border-radius: 30px; padding: 30px 28px;
+      text-align: center; max-width: 420px; width: 100%;
+      box-shadow: 0 16px 50px rgba(0,0,0,.2);
+    }
+    .payment-card h2 { font-family: 'Fredoka One', sans-serif; font-size: 1.9rem; color: var(--purple); margin-bottom: 4px; }
+    .pay-amount { font-family: 'Fredoka One', sans-serif; font-size: 2.8rem; color: var(--dark); margin: 12px 0 4px; }
+    .pay-budget-left { font-family: 'Fredoka One', sans-serif; font-size: 1rem; color: #aaa; margin-bottom: 14px; }
+    .pay-methods { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+    .pay-method-btn {
+      border: 3px solid #eee; background: white; border-radius: 16px; padding: 16px 8px;
+      font-family: 'Nunito', sans-serif; font-weight: 900; font-size: .9rem;
+      cursor: pointer; transition: all .2s; color: var(--dark);
+    }
+    .pay-method-btn .method-icon { font-size: 34px; display: block; margin-bottom: 5px; }
+    .pay-method-btn:hover { border-color: var(--purple); transform: translateY(-3px); box-shadow: 0 6px 18px rgba(165,94,234,.2); }
+    .pay-method-btn.selected { border-color: var(--purple); background: #F8F0FF; }
+    #coin-area { margin: 8px 0; }
+    .coin { display: inline-block; font-size: 26px; cursor: pointer; transition: transform .15s; user-select: none; text-align: center; }
+    .coin:hover { transform: scale(1.3) rotate(10deg); }
+    #coin-counter { font-family: 'Fredoka One', sans-serif; font-size: 1.3rem; color: var(--orange); margin-top: 6px; }
+
+    /* ── SUCCESS ──────────────────────────────── */
+    #screen-success { background: linear-gradient(160deg, #2ED573 0%, #FFD32A 100%); justify-content: center; text-align: center; }
+    .success-card {
+      background: white; border-radius: 30px; padding: 36px 28px;
+      max-width: 420px; width: 100%; box-shadow: 0 16px 50px rgba(0,0,0,.18);
+    }
+    .success-card .big-check { font-size: 80px; display: block; animation: bounce 1s infinite; margin-bottom: 6px; }
+    .success-card h2 { font-family: 'Fredoka One', sans-serif; font-size: 2rem; color: var(--green); }
+    .success-card > p { font-size: 1rem; color: #555; margin: 8px 0 6px; font-weight: 700; }
+    .order-preview { display: flex; justify-content: center; flex-wrap: wrap; gap: 5px; margin: 10px 0 14px; }
+    .order-preview span { font-size: 36px; animation: bounce 1s infinite; }
+    .order-preview span:nth-child(2n) { animation-delay: .15s; }
+    .order-preview span:nth-child(3n) { animation-delay: .3s; }
+
+    /* Budget remaining chip on success */
+    .budget-chip {
+      border-radius: 16px; padding: 12px 18px; margin-bottom: 18px;
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .budget-chip.has-budget  { background: #E8FFF3; border: 2px solid var(--green); }
+    .budget-chip.no-budget   { background: #FFF0F0; border: 2px solid var(--red); }
+    .budget-chip .bc-label   { font-weight: 900; font-size: .85rem; color: #555; text-align: left; line-height: 1.3; }
+    .budget-chip .bc-amount  { font-family: 'Fredoka One', sans-serif; font-size: 1.5rem; }
+    .budget-chip.has-budget .bc-amount { color: var(--green); }
+    .budget-chip.no-budget  .bc-amount { color: var(--red); }
+
+    /* ── EDIT SCREEN ──────────────────────────── */
+    #screen-edit { background: linear-gradient(160deg, #2F2E41 0%, #1a1a2e 100%); padding-bottom: 100px; }
+    .edit-header {
+      width: 100%; max-width: 640px; background: var(--orange); border-radius: 20px;
+      padding: 14px 20px; margin-bottom: 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 4px 16px rgba(255,107,53,.4);
+    }
+    .edit-header h2 { font-family: 'Fredoka One', sans-serif; color: white; font-size: 1.5rem; }
+
+    /* Budget settings card in edit */
+    .budget-settings-card {
+      width: 100%; max-width: 640px;
+      background: rgba(255,211,42,.1); border: 2px solid rgba(255,211,42,.3);
+      border-radius: 20px; padding: 18px 20px; margin-bottom: 20px;
+    }
+    .bsc-title { font-family: 'Fredoka One', sans-serif; font-size: 1.2rem; color: var(--yellow); margin-bottom: 14px; }
+    .bsc-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .bsc-row label { font-weight: 900; color: rgba(255,255,255,.7); font-size: .9rem; flex: 1; }
+    .bsc-controls { display: flex; align-items: center; gap: 10px; }
+    .bsc-btn {
+      background: var(--yellow); border: none; border-radius: 10px;
+      width: 36px; height: 36px; font-size: 1.3rem; font-weight: 900;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: transform .15s;
+    }
+    .bsc-btn:hover { transform: scale(1.12); }
+    .bsc-val { font-family: 'Fredoka One', sans-serif; font-size: 1.3rem; color: white; min-width: 64px; text-align: center; }
+
+    .edit-section { width: 100%; max-width: 640px; margin-bottom: 14px; }
+    .edit-section-title { font-family: 'Fredoka One', sans-serif; font-size: 1.1rem; color: var(--yellow); margin-bottom: 8px; padding-left: 4px; }
+    .edit-item {
+      background: rgba(255,255,255,.08); border: 2px solid rgba(255,255,255,.12);
+      border-radius: 14px; padding: 10px 14px; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .edit-item-emoji { font-size: 30px; flex-shrink: 0; }
+    .edit-item-fields { flex: 1; display: flex; gap: 8px; flex-wrap: wrap; }
+    .edit-field { display: flex; flex-direction: column; gap: 3px; }
+    .edit-field.name-field  { flex: 1; min-width: 110px; }
+    .edit-field.price-field { width: 96px; }
+    .edit-field label { font-size: .7rem; font-weight: 900; color: rgba(255,255,255,.45); text-transform: uppercase; letter-spacing: .05em; }
+    .edit-input {
+      border: 2px solid rgba(255,255,255,.2); border-radius: 9px;
+      background: rgba(255,255,255,.1); color: white;
+      font-family: 'Nunito', sans-serif; font-weight: 700; font-size: .9rem;
+      padding: 6px 8px; outline: none; transition: border-color .2s; width: 100%;
+    }
+    .edit-input:focus { border-color: var(--yellow); }
+    .price-wrap { position: relative; }
+    .price-wrap .euro-sign {
+      position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+      color: var(--yellow); font-family: 'Fredoka One', sans-serif; font-size: .95rem; pointer-events: none;
+    }
+    .price-wrap .edit-input { padding-left: 22px; }
+
+    .save-banner {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--green); padding: 14px 22px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 -4px 20px rgba(46,213,115,.4); z-index: 100;
+      transform: translateY(100%); transition: transform .3s ease;
+    }
+    .save-banner.visible { transform: translateY(0); }
+    .save-banner p { font-family: 'Fredoka One', sans-serif; color: white; font-size: 1rem; }
+    .save-now-btn {
+      background: white; border: none; border-radius: 12px; padding: 9px 20px;
+      font-family: 'Fredoka One', sans-serif; font-size: 1rem; color: var(--green);
+      cursor: pointer; transition: transform .15s;
+    }
+    .save-now-btn:hover { transform: scale(1.07); }
+
+    /* confetti */
+    .confetti-piece {
+      position: fixed; border-radius: 3px;
+      animation: confettiFall 2.5s ease-in forwards;
+      pointer-events: none; z-index: 999;
+    }
+    @keyframes confettiFall {
+      0%   { transform: translateY(-30px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* ── SHARED BUTTONS ───────────────────────── */
+    .big-btn {
+      font-family: 'Fredoka One', sans-serif; font-size: 1.3rem; border: none;
+      border-radius: 18px; padding: 16px 32px; cursor: pointer;
+      width: 100%; max-width: 360px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.15);
+      transition: transform .18s, box-shadow .18s;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .big-btn:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 10px 28px rgba(0,0,0,.2); }
+    .big-btn:active { transform: scale(.97); }
+    .big-btn:disabled { opacity: .45; transform: none; box-shadow: none; cursor: not-allowed; }
+    .big-btn.green  { background: var(--green);  color: white; }
+    .big-btn.red    { background: var(--red);    color: white; }
+    .big-btn.orange { background: var(--orange); color: white; }
+    .big-btn.yellow { background: var(--yellow); color: var(--dark); }
+    .big-btn.blue   { background: var(--blue);   color: white; }
+    .big-btn.purple { background: var(--purple); color: white; }
+
+    /* ── ANIMATIONS ───────────────────────────── */
+    @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+    @keyframes floatAround {
+      0%,100%{transform:translateY(0) rotate(0deg)}
+      33%{transform:translateY(-20px) rotate(8deg)}
+      66%{transform:translateY(10px) rotate(-6deg)}
+    }
+    @keyframes fadeInUp { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
+    .fade-in-up { animation: fadeInUp .4s ease both; }
+
+    /* coin shake */
+    @keyframes coinShake { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-15deg)} 75%{transform:rotate(15deg)} }
+    .coin-shake { animation: coinShake .3s ease; }
+  </style>
+</head>
+<body>
+
+<!-- ══ SCREEN 1 – WELCOME ══════════════════════════ -->
+<div id="screen-welcome" class="screen active">
+  <span class="floating-food" style="top:7%;left:4%;animation-duration:5s">🍕</span>
+  <span class="floating-food" style="top:13%;right:7%;animation-duration:6.5s;animation-delay:.8s">🍦</span>
+  <span class="floating-food" style="bottom:11%;left:9%;animation-duration:4.5s;animation-delay:.4s">🍔</span>
+  <span class="floating-food" style="bottom:18%;right:5%;animation-duration:7s;animation-delay:1.2s">🍟</span>
+  <span class="floating-food" style="top:50%;left:2%;animation-duration:5.5s;animation-delay:.6s">🧁</span>
+  <span class="floating-food" style="top:40%;right:2%;animation-duration:6s;animation-delay:1s">🥤</span>
+
+  <div class="welcome-sign fade-in-up">
+    <span class="big-emoji">🍽️</span>
+    <h1>Yummy Town<br>Restaurant!</h1>
+    <p>Be the chef AND the waiter! 🧑‍🍳</p>
+
+    <!-- People selector -->
+    <div class="people-box">
+      <div class="pb-label">👨‍👩‍👧‍👦 How many people are eating?</div>
+      <div class="people-row">
+        <button class="counter-btn" id="people-minus" onclick="changePeople(-1)">−</button>
+        <div class="people-num" id="people-num">1</div>
+        <button class="counter-btn" id="people-plus"  onclick="changePeople(+1)">+</button>
+      </div>
+      <div class="people-emojis" id="people-emojis">🧒</div>
+    </div>
+
+    <!-- Budget preview -->
+    <div class="budget-preview">
+      <div>
+        <div class="bp-label">💰 Total Budget</div>
+        <div class="bp-calc" id="bp-calc">1 person × €15.00</div>
+      </div>
+      <div class="bp-amount" id="bp-amount">€15.00</div>
+    </div>
+
+    <button class="big-btn green" onclick="startGame()">Let's Eat! 🚀</button>
+    <div style="font-size:28px;margin-top:14px">⭐⭐⭐⭐⭐</div>
+    <span class="edit-link" onclick="showScreen('edit')">✏️ Edit Menu &amp; Settings</span>
+  </div>
+</div>
+
+<!-- ══ SCREEN 2 – MENU ════════════════════════════ -->
+<div id="screen-menu" class="screen">
+  <div class="top-bar">
+    <h2>🍽️ Our Menu</h2>
+    <button class="cart-btn" onclick="showScreen('cart')">
+      🛒 Order <span class="cart-badge" id="cart-count">0</span>
+    </button>
+  </div>
+
+  <!-- Budget bar -->
+  <div class="budget-bar-wrap">
+    <div class="budget-bar-top">
+      <span class="bbt-label">💰 Budget left</span>
+      <span class="bbt-amounts" id="bbt-amounts">€15.00 / €15.00</span>
+    </div>
+    <div class="budget-bar-track">
+      <div class="budget-bar-fill" id="budget-bar-fill" style="width:100%"></div>
+    </div>
+    <div class="budget-reset-row">
+      <span class="budget-people-info" id="budget-people-info">1 person · €15.00 each</span>
+      <button class="reset-budget-btn" onclick="confirmResetBudget()">🔄 Recharge Budget</button>
+    </div>
+  </div>
+
+  <div class="section-title"><span>🍔</span> Yummy Mains</div>
+  <div class="food-grid" id="grid-mains"></div>
+  <div class="section-title"><span>🥗</span> Tasty Sides</div>
+  <div class="food-grid" id="grid-sides"></div>
+  <div class="section-title"><span>🍰</span> Sweet Treats</div>
+  <div class="food-grid" id="grid-desserts"></div>
+  <div class="section-title"><span>🥤</span> Cool Drinks</div>
+  <div class="food-grid" id="grid-drinks"></div>
+</div>
+
+<!-- ══ SCREEN 3 – CART ═══════════════════════════ -->
+<div id="screen-cart" class="screen">
+  <div class="cart-header">
+    <button class="back-btn" onclick="showScreen('menu')">← Menu</button>
+    <h2>🛒 My Order</h2>
+  </div>
+  <div class="cart-list" id="cart-list">
+    <p class="cart-empty">Nothing here yet! Go pick some food 😋</p>
+  </div>
+  <div class="total-box" id="total-box" style="display:none">
+    <span>Total:</span>
+    <span class="total-amount" id="total-display">€0.00</span>
+  </div>
+  <div id="budget-status-box" class="budget-status-box ok" style="display:none">
+    <span class="bsb-icon">✅</span>
+    <span id="budget-status-text">You have enough budget!</span>
+  </div>
+  <button class="big-btn green" id="pay-btn" style="display:none;margin-top:6px" onclick="goToPayment()">
+    Pay Now 💳
+  </button>
+  <button class="big-btn yellow" style="margin-top:10px" onclick="showScreen('menu')">
+    ← Add More Food
+  </button>
+</div>
+
+<!-- ══ SCREEN 4 – PAYMENT ════════════════════════ -->
+<div id="screen-payment" class="screen">
+  <div class="payment-card fade-in-up">
+    <h2>💳 Time to Pay!</h2>
+    <p style="color:#888;font-weight:700">How do you want to pay?</p>
+    <div class="pay-amount" id="pay-amount-display">€0.00</div>
+    <div class="pay-budget-left" id="pay-budget-left">Budget left after: €0.00</div>
+    <div class="pay-methods">
+      <button class="pay-method-btn" id="method-card" onclick="selectMethod('card')">
+        <span class="method-icon">💳</span>Bank Card
+      </button>
+      <button class="pay-method-btn" id="method-cash" onclick="selectMethod('cash')">
+        <span class="method-icon">💰</span>Coins!
+      </button>
+    </div>
+    <div id="card-area" style="display:none">
+      <p style="font-weight:700;color:#666;margin-bottom:10px">Tap your magic card! 👇</p>
+      <div style="font-size:68px;cursor:pointer;transition:transform .2s" id="card-tap" onclick="tapCard()">💳</div>
+      <p id="card-status" style="font-family:'Fredoka One',sans-serif;font-size:1.05rem;color:var(--purple);margin-top:8px;min-height:26px"></p>
+    </div>
+    <div id="coin-area" style="display:none">
+      <p style="font-weight:700;color:#666;margin-bottom:6px">Click the coins to pay! 🪙</p>
+      <div id="coins-row"></div>
+      <div id="coin-counter">Paid: €0.00</div>
+      <p id="coin-status" style="font-family:'Fredoka One',sans-serif;font-size:.95rem;color:var(--green);margin-top:5px;min-height:22px"></p>
+    </div>
+    <button class="big-btn red" style="margin-top:18px" onclick="showScreen('cart')">← Go Back</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN 5 – SUCCESS ════════════════════════ -->
+<div id="screen-success" class="screen">
+  <div class="success-card fade-in-up">
+    <span class="big-check">🎉</span>
+    <h2>Order Placed!</h2>
+    <p>Your food is being made! 🧑‍🍳✨</p>
+    <div class="order-preview" id="success-food"></div>
+
+    <!-- Remaining budget chip -->
+    <div class="budget-chip" id="budget-chip">
+      <span style="font-size:1.6rem" id="budget-chip-icon">💰</span>
+      <div class="bc-label" id="budget-chip-label">Budget left</div>
+      <div class="bc-amount" id="budget-chip-amount">€0.00</div>
+    </div>
+
+    <button class="big-btn green" style="margin-bottom:10px" onclick="nextOrder()">
+      Order Again! 🍽️
+    </button>
+    <button class="big-btn blue" onclick="rechargeAndReturn()">
+      🔄 Recharge &amp; Start Over
+    </button>
+    <button class="big-btn yellow" style="margin-top:8px" onclick="goWelcome()">
+      Change People 👨‍👩‍👧‍👦
+    </button>
+  </div>
+</div>
+
+<!-- ══ SCREEN 6 – EDIT ═══════════════════════════ -->
+<div id="screen-edit" class="screen">
+  <div class="edit-header">
+    <button class="back-btn" onclick="cancelEdit()">← Back</button>
+    <h2>✏️ Edit Menu &amp; Settings</h2>
+    <span style="font-size:1.4rem">🍴</span>
+  </div>
+
+  <!-- Budget settings -->
+  <div class="budget-settings-card">
+    <div class="bsc-title">💰 Budget Settings</div>
+    <div class="bsc-row">
+      <label>Budget per person</label>
+      <div class="bsc-controls">
+        <button class="bsc-btn" onclick="changeBudgetSetting(-1)">−</button>
+        <span class="bsc-val" id="bsc-val">€15.00</span>
+        <button class="bsc-btn" onclick="changeBudgetSetting(+1)">+</button>
+      </div>
+    </div>
+    <div style="margin-top:8px;font-size:.78rem;color:rgba(255,255,255,.4);font-weight:700">
+      Adjusts in €1 steps · Range €5 – €50
+    </div>
+  </div>
+
+  <div id="edit-sections"></div>
+
+  <div class="save-banner" id="save-banner">
+    <p>💾 Unsaved changes!</p>
+    <button class="save-now-btn" onclick="saveEdit()">Save ✅</button>
+  </div>
+</div>
+
+<!-- ══ JAVASCRIPT ═════════════════════════════════ -->
+<script>
+// ── DEFAULT MENU ──────────────────────────────────
+const defaultMenu = {
+  mains: [
+    { id:'burger',   emoji:'🍔', name:'Cheeseburger', price:5.99 },
+    { id:'pizza',    emoji:'🍕', name:'Pizza Slice',  price:4.50 },
+    { id:'hotdog',   emoji:'🌭', name:'Hot Dog',      price:3.50 },
+    { id:'sandwich', emoji:'🥪', name:'Sandwich',     price:4.00 },
+    { id:'nuggets',  emoji:'🍗', name:'Dino Nuggets', price:4.50 },
+    { id:'pasta',    emoji:'🍝', name:'Pasta',        price:5.00 },
+  ],
+  sides: [
+    { id:'fries',  emoji:'🍟', name:'Chips',        price:2.50 },
+    { id:'salad',  emoji:'🥗', name:'Side Salad',   price:2.00 },
+    { id:'soup',   emoji:'🍲', name:'Tomato Soup',  price:2.80 },
+    { id:'bread',  emoji:'🥖', name:'Garlic Bread', price:1.80 },
+  ],
+  desserts: [
+    { id:'icecream', emoji:'🍦', name:'Ice Cream',  price:2.50 },
+    { id:'cake',     emoji:'🍰', name:'Cake Slice', price:3.50 },
+    { id:'cupcake',  emoji:'🧁', name:'Cupcake',    price:2.20 },
+    { id:'donut',    emoji:'🍩', name:'Doughnut',   price:1.80 },
+  ],
+  drinks: [
+    { id:'milkshake', emoji:'🥤', name:'Milkshake',   price:3.00 },
+    { id:'juice',     emoji:'🍊', name:'Orange Juice', price:2.00 },
+    { id:'water',     emoji:'💧', name:'Water',        price:0.50 },
+    { id:'lemonade',  emoji:'🍋', name:'Lemonade',     price:2.20 },
+  ]
+};
+
+// ── PERSIST ───────────────────────────────────────
+function loadMenu() {
+  try { const s = localStorage.getItem('yt_menu'); if (s) return JSON.parse(s); } catch(e) {}
+  return JSON.parse(JSON.stringify(defaultMenu));
+}
+function loadSettings() {
+  try { const s = localStorage.getItem('yt_settings'); if (s) return JSON.parse(s); } catch(e) {}
+  return { budgetPerPerson: 15 };
+}
+function persist() {
+  try {
+    localStorage.setItem('yt_menu',     JSON.stringify(menu));
+    localStorage.setItem('yt_settings', JSON.stringify(settings));
+  } catch(e) {}
+}
+
+let menu     = loadMenu();
+let settings = loadSettings();
+
+// ── STATE ─────────────────────────────────────────
+let numPeople       = 1;
+let totalBudget     = settings.budgetPerPerson;  // set on startGame
+let remainingBudget = settings.budgetPerPerson;
+let cart            = {};
+let selectedMethod  = null;
+let coinsPaid       = 0;
+let editDirty       = false;
+
+// ── PEOPLE / WELCOME ──────────────────────────────
+const PERSON_EMOJIS = ['🧒','👧','🧑','👦','👩','🧔','👨','👴'];
+const MAX_PEOPLE = 8;
+
+function changePeople(delta) {
+  numPeople = Math.min(MAX_PEOPLE, Math.max(1, numPeople + delta));
+  updateWelcomeBudget();
+  document.getElementById('people-minus').disabled = numPeople <= 1;
+  document.getElementById('people-plus').disabled  = numPeople >= MAX_PEOPLE;
+}
+
+function updateWelcomeBudget() {
+  const bpp   = settings.budgetPerPerson;
+  const total = bpp * numPeople;
+  document.getElementById('people-num').textContent     = numPeople;
+  document.getElementById('people-emojis').textContent  = PERSON_EMOJIS.slice(0, numPeople).join('');
+  document.getElementById('bp-calc').textContent        =
+    `${numPeople} person${numPeople>1?'s':''} × €${bpp.toFixed(2)}`;
+  document.getElementById('bp-amount').textContent      = `€${total.toFixed(2)}`;
+}
+
+function startGame() {
+  totalBudget     = settings.budgetPerPerson * numPeople;
+  remainingBudget = totalBudget;
+  cart = {};
+  updateCartBadge();
+  buildMenu();
+  updateBudgetBar();
+  showScreen('menu');
+}
+
+function goWelcome() { showScreen('welcome'); }
+
+// ── BUDGET BAR ────────────────────────────────────
+function updateBudgetBar() {
+  const pct = totalBudget > 0 ? Math.max(0, remainingBudget / totalBudget) : 0;
+  const fill = document.getElementById('budget-bar-fill');
+  const bpp  = settings.budgetPerPerson;
+
+  fill.style.width = (pct * 100).toFixed(1) + '%';
+  fill.className    = 'budget-bar-fill' + (pct < .3 ? ' danger' : pct < .6 ? ' warn' : '');
+
+  document.getElementById('bbt-amounts').textContent =
+    `€${remainingBudget.toFixed(2)} / €${totalBudget.toFixed(2)}`;
+  document.getElementById('budget-people-info').textContent =
+    `${numPeople} person${numPeople>1?'s':''} · €${bpp.toFixed(2)} each`;
+}
+
+function confirmResetBudget() {
+  if (confirm(`Recharge everyone's budget back to €${totalBudget.toFixed(2)}?`)) {
+    remainingBudget = totalBudget;
+    updateBudgetBar();
+    updateCartBudgetStatus();
+  }
+}
+
+// ── BUILD MENU CARDS ──────────────────────────────
+function buildMenu() {
+  Object.entries(menu).forEach(([cat, items]) => {
+    const grid = document.getElementById('grid-' + cat);
+    grid.innerHTML = '';
+    items.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'food-card';
+      card.id = 'card-' + item.id;
+      card.innerHTML = `
+        <span class="food-emoji">${item.emoji}</span>
+        <div class="food-name">${item.name}</div>
+        <div class="food-price">€${item.price.toFixed(2)}</div>
+        <div class="add-badge">✓</div>`;
+      card.onclick = () => addToCart(item, card);
+      grid.appendChild(card);
+    });
+  });
+}
+
+// ── CART ──────────────────────────────────────────
+function addToCart(item, card) {
+  if (cart[item.id]) cart[item.id].qty++;
+  else cart[item.id] = { item: { ...item }, qty: 1 };
+  card.classList.add('in-cart', 'popping');
+  card.querySelector('.add-badge').textContent = cart[item.id].qty > 1 ? cart[item.id].qty : '✓';
+  card.addEventListener('animationend', () => card.classList.remove('popping'), { once: true });
+  updateCartBadge();
+}
+
+function updateCartBadge() {
+  document.getElementById('cart-count').textContent =
+    Object.values(cart).reduce((s,e) => s + e.qty, 0);
+}
+
+function renderCart() {
+  const list    = document.getElementById('cart-list');
+  const entries = Object.values(cart).filter(e => e.qty > 0);
+  if (!entries.length) {
+    list.innerHTML = '<p class="cart-empty">Nothing here yet! Go pick some food 😋</p>';
+    document.getElementById('total-box').style.display         = 'none';
+    document.getElementById('budget-status-box').style.display = 'none';
+    document.getElementById('pay-btn').style.display           = 'none';
+    return;
+  }
+  list.innerHTML = '';
+  entries.forEach(({ item, qty }) => {
+    const div = document.createElement('div');
+    div.className = 'cart-item fade-in-up';
+    div.innerHTML = `
+      <span class="item-emoji">${item.emoji}</span>
+      <div class="item-info">
+        <div class="item-name">${item.name}</div>
+        <div class="item-price">€${(item.price * qty).toFixed(2)}</div>
+      </div>
+      <div class="qty-controls">
+        <button class="qty-btn" onclick="changeQty('${item.id}',-1)">−</button>
+        <span class="qty-num">${qty}</span>
+        <button class="qty-btn" onclick="changeQty('${item.id}',1)">+</button>
+      </div>`;
+    list.appendChild(div);
+  });
+  document.getElementById('total-display').textContent = '€' + getTotal().toFixed(2);
+  document.getElementById('total-box').style.display = 'flex';
+  updateCartBudgetStatus();
+}
+
+function updateCartBudgetStatus() {
+  const total   = getTotal();
+  const box     = document.getElementById('budget-status-box');
+  const txt     = document.getElementById('budget-status-text');
+  const payBtn  = document.getElementById('pay-btn');
+  if (total === 0) { box.style.display = 'none'; payBtn.style.display = 'none'; return; }
+  box.style.display  = 'flex';
+  payBtn.style.display = 'flex';
+  if (total <= remainingBudget) {
+    box.className = 'budget-status-box ok';
+    const leftAfter = remainingBudget - total;
+    txt.textContent = `✅ You have enough! (€${leftAfter.toFixed(2)} left after)`;
+    payBtn.disabled = false;
+  } else {
+    box.className = 'budget-status-box over';
+    const overBy = total - remainingBudget;
+    txt.textContent = `❌ Over budget by €${overBy.toFixed(2)}! Remove some items.`;
+    payBtn.disabled = true;
+  }
+}
+
+function changeQty(id, delta) {
+  if (!cart[id]) return;
+  cart[id].qty = Math.max(0, cart[id].qty + delta);
+  if (cart[id].qty === 0) {
+    delete cart[id];
+    const c = document.getElementById('card-' + id);
+    if (c) { c.classList.remove('in-cart'); c.querySelector('.add-badge').textContent = '✓'; }
+  } else {
+    const c = document.getElementById('card-' + id);
+    if (c) c.querySelector('.add-badge').textContent = cart[id].qty > 1 ? cart[id].qty : '✓';
+  }
+  updateCartBadge();
+  renderCart();
+}
+
+function getTotal() {
+  return Object.values(cart).reduce((s,e) => s + e.item.price * e.qty, 0);
+}
+
+// ── PAYMENT ───────────────────────────────────────
+function goToPayment() {
+  if (!Object.keys(cart).length || getTotal() > remainingBudget) return;
+  selectedMethod = null; coinsPaid = 0;
+  showScreen('payment');
+}
+
+function setupPayment() {
+  const total    = getTotal();
+  const leftAfter = remainingBudget - total;
+  document.getElementById('pay-amount-display').textContent = '€' + total.toFixed(2);
+  document.getElementById('pay-budget-left').textContent =
+    `Budget remaining after paying: €${leftAfter.toFixed(2)}`;
+  document.getElementById('card-area').style.display  = 'none';
+  document.getElementById('coin-area').style.display  = 'none';
+  document.getElementById('card-status').textContent  = '';
+  document.getElementById('card-tap').style.transform = '';
+  document.querySelectorAll('.pay-method-btn').forEach(b => b.classList.remove('selected'));
+}
+
+function selectMethod(method) {
+  selectedMethod = method;
+  document.getElementById('method-card').classList.toggle('selected', method === 'card');
+  document.getElementById('method-cash').classList.toggle('selected', method === 'cash');
+  document.getElementById('card-area').style.display = method === 'card' ? 'block' : 'none';
+  document.getElementById('coin-area').style.display = method === 'cash' ? 'block' : 'none';
+  if (method === 'cash') setupCoins();
+}
+
+function tapCard() {
+  const el = document.getElementById('card-tap');
+  const st = document.getElementById('card-status');
+  el.style.transform = 'scale(0.85) rotate(-8deg)';
+  st.textContent = '⏳ Checking...';
+  setTimeout(() => { el.style.transform = 'scale(1.15) rotate(5deg)'; st.textContent = ''; }, 400);
+  setTimeout(() => {
+    el.style.transform = 'scale(1)';
+    st.textContent = '✅ Approved! Yay!';
+    st.style.color = 'var(--green)';
+    setTimeout(completeOrder, 900);
+  }, 1000);
+}
+
+function setupCoins() {
+  coinsPaid = 0;
+  const coins = [
+    {label:'1c',value:.01},{label:'2c',value:.02},{label:'5c',value:.05},
+    {label:'10c',value:.10},{label:'20c',value:.20},{label:'50c',value:.50},
+    {label:'€1',value:1},{label:'€2',value:2},
+  ];
+  document.getElementById('coins-row').innerHTML = coins.map(c =>
+    `<span class="coin" onclick="addCoin(${c.value},this)">
+      🪙<br><small style="font-family:'Fredoka One';font-size:.62rem">${c.label}</small>
+    </span>`
+  ).join('');
+  updateCoinDisplay();
+}
+
+function addCoin(val, el) {
+  coinsPaid = Math.round((coinsPaid + val) * 100) / 100;
+  el.classList.remove('coin-shake');
+  void el.offsetWidth;
+  el.classList.add('coin-shake');
+  updateCoinDisplay();
+}
+
+function updateCoinDisplay() {
+  const total = getTotal();
+  document.getElementById('coin-counter').textContent =
+    `Paid: €${coinsPaid.toFixed(2)} / €${total.toFixed(2)}`;
+  const st = document.getElementById('coin-status');
+  if (coinsPaid >= total) {
+    const change = (coinsPaid - total).toFixed(2);
+    st.textContent = change > 0 ? `✅ Paid! Change: €${change} 🎉` : '✅ Exact change! Perfect! 🎉';
+    st.style.color = 'var(--green)';
+    setTimeout(completeOrder, 1200);
+  } else {
+    st.textContent = `Still need: €${(total - coinsPaid).toFixed(2)}`;
+    st.style.color = 'var(--orange)';
+  }
+}
+
+// ── COMPLETE ORDER ────────────────────────────────
+function completeOrder() {
+  const spent = getTotal();
+  remainingBudget = Math.round((remainingBudget - spent) * 100) / 100;
+  updateBudgetBar();
+
+  // build food preview
+  document.getElementById('success-food').innerHTML =
+    Object.values(cart).map(e => `<span>${e.item.emoji}</span>`).join('');
+
+  // budget chip
+  const chip   = document.getElementById('budget-chip');
+  const icon   = document.getElementById('budget-chip-icon');
+  const label  = document.getElementById('budget-chip-label');
+  const amount = document.getElementById('budget-chip-amount');
+
+  if (remainingBudget <= 0) {
+    chip.className     = 'budget-chip no-budget';
+    icon.textContent   = '😅';
+    label.innerHTML    = `<strong>Budget used up!</strong><br>Recharge to keep ordering.`;
+    amount.textContent = '€0.00';
+  } else {
+    chip.className     = 'budget-chip has-budget';
+    icon.textContent   = '💰';
+    label.innerHTML    = `Budget remaining<br><span style="font-size:.75rem;color:#888">Keep ordering! 🎉</span>`;
+    amount.textContent = `€${remainingBudget.toFixed(2)}`;
+  }
+
+  launchConfetti();
+  showScreen('success');
+}
+
+function nextOrder() {
+  // clear cart but keep budget and people
+  cart = {}; updateCartBadge();
+  document.querySelectorAll('.food-card').forEach(c => {
+    c.classList.remove('in-cart');
+    c.querySelector('.add-badge').textContent = '✓';
+  });
+  showScreen('menu');
+}
+
+function rechargeAndReturn() {
+  remainingBudget = totalBudget;
+  updateBudgetBar();
+  nextOrder();
+}
+
+// ── SCREEN ROUTER ─────────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  if (name === 'cart')    renderCart();
+  if (name === 'payment') setupPayment();
+  if (name === 'edit')    buildEditScreen();
+  if (name === 'welcome') updateWelcomeBudget();
+}
+
+// ── EDIT SCREEN ───────────────────────────────────
+const catLabels = {
+  mains:'🍔 Yummy Mains', sides:'🥗 Tasty Sides',
+  desserts:'🍰 Sweet Treats', drinks:'🥤 Cool Drinks'
+};
+
+function buildEditScreen() {
+  editDirty = false;
+  document.getElementById('save-banner').classList.remove('visible');
+  document.getElementById('bsc-val').textContent = `€${settings.budgetPerPerson.toFixed(2)}`;
+
+  const container = document.getElementById('edit-sections');
+  container.innerHTML = '';
+
+  Object.entries(menu).forEach(([cat, items]) => {
+    const section = document.createElement('div');
+    section.className = 'edit-section';
+    section.innerHTML = `<div class="edit-section-title">${catLabels[cat]}</div>`;
+    items.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'edit-item';
+      row.innerHTML = `
+        <span class="edit-item-emoji">${item.emoji}</span>
+        <div class="edit-item-fields">
+          <div class="edit-field name-field">
+            <label>Name</label>
+            <input class="edit-input" type="text"
+              data-id="${item.id}" data-field="name"
+              value="${item.name}" oninput="markDirty()" />
+          </div>
+          <div class="edit-field price-field">
+            <label>Price</label>
+            <div class="price-wrap">
+              <span class="euro-sign">€</span>
+              <input class="edit-input" type="number" min="0" step="0.10"
+                data-id="${item.id}" data-field="price"
+                value="${item.price.toFixed(2)}" oninput="markDirty()" />
+            </div>
+          </div>
+        </div>`;
+      section.appendChild(row);
+    });
+    container.appendChild(section);
+  });
+
+  const pad = document.createElement('div');
+  pad.style.height = '80px';
+  container.appendChild(pad);
+}
+
+function changeBudgetSetting(delta) {
+  settings.budgetPerPerson = Math.min(50, Math.max(5, settings.budgetPerPerson + delta));
+  document.getElementById('bsc-val').textContent = `€${settings.budgetPerPerson.toFixed(2)}`;
+  markDirty();
+}
+
+function markDirty() {
+  editDirty = true;
+  document.getElementById('save-banner').classList.add('visible');
+}
+
+function saveEdit() {
+  // read price/name changes
+  document.querySelectorAll('.edit-input').forEach(input => {
+    const id = input.dataset.id, field = input.dataset.field;
+    for (const items of Object.values(menu)) {
+      const item = items.find(i => i.id === id);
+      if (item) {
+        if (field === 'name')  item.name  = input.value.trim() || item.name;
+        if (field === 'price') { const v = parseFloat(input.value); if (!isNaN(v) && v >= 0) item.price = Math.round(v*100)/100; }
+        break;
+      }
+    }
+  });
+
+  persist();
+  buildMenu();
+  updateWelcomeBudget();
+  editDirty = false;
+
+  const banner = document.getElementById('save-banner');
+  const orig   = banner.innerHTML;
+  banner.style.background = 'var(--blue)';
+  banner.innerHTML = '<p style="flex:1;text-align:center">✅ Saved!</p>';
+  setTimeout(() => {
+    banner.style.background = '';
+    banner.innerHTML = orig;
+    banner.querySelector('.save-now-btn').onclick = saveEdit;
+    banner.classList.remove('visible');
+  }, 1300);
+}
+
+function cancelEdit() {
+  if (editDirty && !confirm('Discard unsaved changes?')) return;
+  showScreen('welcome');
+}
+
+// ── CONFETTI ──────────────────────────────────────
+function launchConfetti() {
+  const colors = ['#FF4757','#FFD32A','#2ED573','#1E90FF','#A55EEA','#FF6B35'];
+  for (let i = 0; i < 60; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti-piece';
+    c.style.cssText = `left:${Math.random()*100}vw;top:-20px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      animation-delay:${Math.random()*1.5}s;animation-duration:${1.8+Math.random()*1.5}s;
+      transform:rotate(${Math.random()*360}deg);
+      width:${8+Math.random()*12}px;height:${8+Math.random()*12}px;
+      border-radius:${Math.random()>.5?'50%':'3px'};`;
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 4000);
+  }
+}
+
+// ── INIT ──────────────────────────────────────────
+updateWelcomeBudget();
+buildMenu();
+</script>
+</body>
+</html>

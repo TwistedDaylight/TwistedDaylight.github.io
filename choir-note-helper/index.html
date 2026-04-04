@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="Choir Notes"/>
+  <meta name="theme-color" content="#8b4513"/>
+  <title>Choir Note Helper</title>
+  <script>
+    // Register an inline service worker for offline support
+    if ('serviceWorker' in navigator) {
+      const swCode = `
+        const CACHE = 'choir-notes-v1';
+        const URLS = [
+          self.location.origin + self.location.pathname,
+          'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js',
+          'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js',
+          'https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js',
+        ];
+        self.addEventListener('install', e => {
+          e.waitUntil(caches.open(CACHE).then(c => c.addAll(URLS)));
+          self.skipWaiting();
+        });
+        self.addEventListener('activate', e => {
+          e.waitUntil(caches.keys().then(keys =>
+            Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+          ));
+          self.clients.claim();
+        });
+        self.addEventListener('fetch', e => {
+          e.respondWith(
+            caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
+              const clone = res.clone();
+              caches.open(CACHE).then(c => c.put(e.request, clone));
+              return res;
+            }))
+          );
+        });
+      `;
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swUrl).catch(console.warn);
+    }
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { background: #fdf6e3; font-family: Georgia, serif; }
+    button { font-family: Georgia, serif; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useCallback } = React;
+
+const CLEFS = {
+  treble: {
+    label: "Treble Clef", subtitle: "Soprano / Alto",
+    lines: ["E4","G4","B4","D5","F5"],
+    spaces: ["F4","A4","C5","E5"],
+    ledgerBelow: ["C4","D4"], ledgerAbove: ["G5","A5"],
+  },
+  bass: {
+    label: "Bass Clef", subtitle: "Tenor / Bass",
+    lines: ["G2","B2","D3","F3","A3"],
+    spaces: ["A2","C3","E3","G3"],
+    ledgerBelow: ["E2","F2"], ledgerAbove: ["B3","C4"],
+  },
+};
+
+function midiToFreq(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
+
+const NOTE_MIDI = {
+  C2:36,D2:38,E2:40,F2:41,G2:43,A2:45,B2:47,
+  C3:48,D3:50,E3:52,F3:53,G3:55,A3:57,B3:59,
+  C4:60,D4:62,E4:64,F4:65,G4:67,A4:69,B4:71,
+  C5:72,D5:74,E5:76,F5:77,G5:79,A5:81,
+};
+
+const NO_SHARP = new Set(["E","B"]);
+const NO_FLAT  = new Set(["C","F"]);
+const SHARP_NAMES = { C:"C♯",D:"D♯",F:"F♯",G:"G♯",A:"A♯" };
+const FLAT_NAMES  = { D:"D♭",E:"E♭",G:"G♭",A:"A♭",B:"B♭" };
+
+function slotToY(slot, staffTop, slotHeight) {
+  return staffTop + (8 - slot) * slotHeight;
+}
+
+function App() {
+  const [clef, setClef] = useState("treble");
+  const [selectedNote, setSelectedNote] = useState(null);
+  const [accidental, setAccidental] = useState("natural");
+  const [playing, setPlaying] = useState(false);
+  const audioCtxRef = useRef(null);
+
+  const staffTop = 60, slotHeight = 14, staffWidth = 300, svgWidth = 380, svgHeight = 220, staffLeft = 46;
+
+  const currentClef = CLEFS[clef];
+  const noteLetter = selectedNote ? selectedNote.replace(/\d/,"") : null;
+  const canSharp = noteLetter && !NO_SHARP.has(noteLetter);
+  const canFlat  = noteLetter && !NO_FLAT.has(noteLetter);
+  const effectiveAcc = (accidental==="sharp"&&!canSharp)||(accidental==="flat"&&!canFlat) ? "natural" : accidental;
+
+  const getFreq = (note, acc) => {
+    const midi = NOTE_MIDI[note]; if (!midi) return null;
+    if (acc==="sharp") return midiToFreq(midi+1);
+    if (acc==="flat")  return midiToFreq(midi-1);
+    return midiToFreq(midi);
+  };
+
+  const playFreq = useCallback((freq, isLow) => {
+    if (!freq) return;
+    try {
+      if (!audioCtxRef.current)
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = audioCtxRef.current;
+      const doPlay = () => {
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(isLow?0.45:0.38, ctx.currentTime+0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+2.2);
+        const osc1 = ctx.createOscillator();
+        osc1.connect(gain);
+        osc1.type = isLow ? "sawtooth" : "sine";
+        osc1.frequency.setValueAtTime(freq, ctx.currentTime);
+        osc1.start(ctx.currentTime); osc1.stop(ctx.currentTime+2.2);
+        if (isLow) {
+          const osc2 = ctx.createOscillator(), g2 = ctx.createGain();
+          osc2.connect(g2); g2.connect(ctx.destination);
+          osc2.type = "sine";
+          osc2.frequency.setValueAtTime(freq*2, ctx.currentTime);
+          g2.gain.setValueAtTime(0, ctx.currentTime);
+          g2.gain.linearRampToValueAtTime(0.3, ctx.currentTime+0.06);
+          g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+2.2);
+          osc2.start(ctx.currentTime); osc2.stop(ctx.currentTime+2.2);
+        }
+        setPlaying(true);
+        setTimeout(()=>setPlaying(false), 2200);
+      };
+      ctx.state==="suspended" ? ctx.resume().then(doPlay) : doPlay();
+    } catch(e) { console.error(e); }
+  }, []);
+
+  const triggerPlay = (note, acc) => {
+    const letter = note.replace(/\d/,"");
+    const validAcc = (acc==="sharp"&&NO_SHARP.has(letter))||(acc==="flat"&&NO_FLAT.has(letter)) ? "natural" : acc;
+    const freq = getFreq(note, validAcc);
+    playFreq(freq, (NOTE_MIDI[note]||60) < 52);
+  };
+
+  const handleNoteClick = (note) => { setSelectedNote(note); triggerPlay(note, accidental); };
+  const handleAccidental = (acc) => { setAccidental(acc); if (selectedNote) triggerPlay(selectedNote, acc); };
+
+  const clickableSlots = [
+    {slot:-2,note:currentClef.ledgerBelow[0]}, {slot:-1,note:currentClef.ledgerBelow[1]},
+    {slot:0,note:currentClef.lines[0]},   {slot:1,note:currentClef.spaces[0]},
+    {slot:2,note:currentClef.lines[1]},   {slot:3,note:currentClef.spaces[1]},
+    {slot:4,note:currentClef.lines[2]},   {slot:5,note:currentClef.spaces[2]},
+    {slot:6,note:currentClef.lines[3]},   {slot:7,note:currentClef.spaces[3]},
+    {slot:8,note:currentClef.lines[4]},
+    {slot:9,note:currentClef.ledgerAbove[0]}, {slot:10,note:currentClef.ledgerAbove[1]},
+  ];
+
+  const selectedSlot = selectedNote ? (clickableSlots.find(s=>s.note===selectedNote)?.slot??null) : null;
+
+  const displayName = () => {
+    if (!selectedNote) return null;
+    if (effectiveAcc==="sharp"&&SHARP_NAMES[noteLetter]) return SHARP_NAMES[noteLetter];
+    if (effectiveAcc==="flat"&&FLAT_NAMES[noteLetter])   return FLAT_NAMES[noteLetter];
+    return noteLetter;
+  };
+
+  const S = {
+    page: { minHeight:"100vh", background:"#fdf6e3", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"20px 14px" },
+    h1: { fontSize:24, fontWeight:700, color:"#2c1810", margin:0 },
+    sub: { color:"#7a6245", fontSize:13, marginTop:6, maxWidth:300, textAlign:"center" },
+    clefRow: { display:"flex", gap:10, marginBottom:18 },
+    clefBtn: (active) => ({ padding:"8px 18px", borderRadius:30, border:"2px solid", borderColor:active?"#8b4513":"#c9b99a", background:active?"#8b4513":"#fdf6e3", color:active?"#fdf6e3":"#5a3e28", fontSize:13, fontWeight:600, cursor:"pointer" }),
+    staffWrap: { background:"#fff8e8", borderRadius:16, boxShadow:"0 4px 24px rgba(100,60,20,0.10)", padding:"8px 6px", marginBottom:14, border:"1.5px solid #e8d5b0" },
+    accRow: { display:"flex", gap:8, marginBottom:14, alignItems:"center", flexWrap:"wrap", justifyContent:"center" },
+    accBtn: (active, disabled) => ({ padding:"7px 14px", borderRadius:20, border:"2px solid", borderColor:active?"#8b4513":disabled?"#ddd":"#c9b99a", background:active?"#8b4513":disabled?"#f0ece4":"#fdf6e3", color:active?"#fdf6e3":disabled?"#bbb":"#5a3e28", fontSize:14, fontWeight:600, cursor:disabled?"not-allowed":"pointer", opacity:disabled?0.6:1 }),
+    result: (has) => ({ minHeight:100, width:"100%", maxWidth:360, background:has?"#fff8e8":"#f5edd8", border:"1.5px solid", borderColor:has?"#c9935a":"#e0cca8", borderRadius:14, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:16, boxShadow:has?"0 4px 18px rgba(139,69,19,0.10)":"none" }),
+    playBtn: (p) => ({ background:p?"#d4622a":"#8b4513", color:"#fdf6e3", border:"none", borderRadius:30, padding:"9px 24px", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }),
+    refWrap: { marginTop:14, maxWidth:360, width:"100%" },
+    refCard: { background:"#fff8e8", border:"1px solid #e0cca8", borderRadius:10, padding:"10px 12px", flex:1 },
+    chip: (sel) => ({ background:sel?"#8b4513":"#f0e4cc", color:sel?"#fdf6e3":"#5a3e28", borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:600, cursor:"pointer", display:"inline-block", margin:"2px" }),
+  };
+
+  return (
+    <div style={S.page}>
+      <div style={{ textAlign:"center", marginBottom:18 }}>
+        <div style={{ fontSize:12, letterSpacing:"0.18em", color:"#8b7355", textTransform:"uppercase", marginBottom:5 }}>Choir Note Helper</div>
+        <h1 style={S.h1}>Which note is that?</h1>
+        <p style={S.sub}>Tap any line or space on the staff to hear the note.</p>
+      </div>
+
+      <div style={S.clefRow}>
+        {["treble","bass"].map(c=>(
+          <button key={c} style={S.clefBtn(clef===c)} onClick={()=>{setClef(c);setSelectedNote(null);setAccidental("natural");}}>
+            <span style={{fontSize:15,marginRight:4}}>{c==="treble"?"𝄞":"𝄢"}</span>
+            {CLEFS[c].label}
+            <div style={{fontSize:10,opacity:0.75,fontWeight:400}}>{CLEFS[c].subtitle}</div>
+          </button>
+        ))}
+      </div>
+
+      <div style={S.staffWrap}>
+        <svg width={svgWidth} height={svgHeight} style={{display:"block"}}>
+          {[0,2,4,6,8].map(slot=>(
+            <line key={slot} x1={staffLeft} y1={slotToY(slot,staffTop,slotHeight)} x2={staffLeft+staffWidth} y2={slotToY(slot,staffTop,slotHeight)} stroke="#5a3e28" strokeWidth={1.5}/>
+          ))}
+          {selectedSlot!==null&&selectedSlot<=-1&&(<>
+            <line x1={staffLeft+staffWidth/2-18} x2={staffLeft+staffWidth/2+18} y1={slotToY(0,staffTop,slotHeight)} y2={slotToY(0,staffTop,slotHeight)} stroke="#8b4513" strokeWidth={1.5} strokeDasharray="3,2"/>
+            {selectedSlot===-2&&<line x1={staffLeft+staffWidth/2-18} x2={staffLeft+staffWidth/2+18} y1={slotToY(-2,staffTop,slotHeight)} y2={slotToY(-2,staffTop,slotHeight)} stroke="#8b4513" strokeWidth={1.5}/>}
+          </>)}
+          {selectedSlot!==null&&selectedSlot>=9&&(<>
+            <line x1={staffLeft+staffWidth/2-18} x2={staffLeft+staffWidth/2+18} y1={slotToY(8,staffTop,slotHeight)} y2={slotToY(8,staffTop,slotHeight)} stroke="#8b4513" strokeWidth={1.5} strokeDasharray="3,2"/>
+            {selectedSlot===10&&<line x1={staffLeft+staffWidth/2-18} x2={staffLeft+staffWidth/2+18} y1={slotToY(10,staffTop,slotHeight)} y2={slotToY(10,staffTop,slotHeight)} stroke="#8b4513" strokeWidth={1.5}/>}
+          </>)}
+          <text x={staffLeft+8} y={slotToY(clef==="treble"?4:6,staffTop,slotHeight)+(clef==="treble"?22:6)} fontSize={clef==="treble"?62:36} fill="#5a3e28" fontFamily="serif" opacity={0.85}>{clef==="treble"?"𝄞":"𝄢"}</text>
+          {selectedSlot!==null&&effectiveAcc!=="natural"&&(
+            <text x={staffLeft+staffWidth/2-24} y={slotToY(selectedSlot,staffTop,slotHeight)+6} fontSize={17} fill="#8b4513" fontFamily="serif" textAnchor="middle">{effectiveAcc==="sharp"?"♯":"♭"}</text>
+          )}
+          {clickableSlots.map(({slot,note})=>{
+            const cy=slotToY(slot,staffTop,slotHeight), isSel=selectedNote===note;
+            return (
+              <g key={note} onClick={()=>handleNoteClick(note)} style={{cursor:"pointer"}}>
+                <rect x={staffLeft+50} y={cy-slotHeight/2} width={staffWidth-60} height={slotHeight} fill="transparent"/>
+                {isSel&&<ellipse cx={staffLeft+staffWidth/2} cy={cy} rx={13} ry={9} fill={playing?"#d4622a":"#8b4513"} style={{transition:"fill 0.2s"}}/>}
+                <text x={staffLeft+staffWidth+6} y={cy+4} fontSize={10} fill={isSel?"#8b4513":"#c4a882"} fontFamily="Georgia,serif" fontWeight={isSel?"700":"400"}>{note}</text>
+              </g>
+            );
+          })}
+          {!selectedNote&&<text x={staffLeft+staffWidth/2} y={slotToY(4,staffTop,slotHeight)+4} textAnchor="middle" fontSize={12} fill="#c4a882" fontFamily="Georgia,serif" fontStyle="italic">← tap any line or space →</text>}
+        </svg>
+      </div>
+
+      <div style={S.accRow}>
+        <span style={{fontSize:12,color:"#a08060"}}>Accidental:</span>
+        {[{key:"flat",label:"♭  Flat"},{key:"natural",label:"♮  Natural"},{key:"sharp",label:"♯  Sharp"}].map(({key,label})=>{
+          const dis=(key==="sharp"&&selectedNote&&!canSharp)||(key==="flat"&&selectedNote&&!canFlat);
+          return <button key={key} style={S.accBtn(effectiveAcc===key,dis)} onClick={()=>!dis&&handleAccidental(key)}>{label}</button>;
+        })}
+      </div>
+
+      <div style={S.result(!!selectedNote)}>
+        {selectedNote ? (<>
+          <div style={{fontSize:11,color:"#a07850",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:2}}>{clef==="treble"?"Treble":"Bass"} Clef · {selectedNote}</div>
+          <div style={{fontSize:54,fontWeight:700,color:"#2c1810",lineHeight:1,marginBottom:4}}>{displayName()}</div>
+          {effectiveAcc!=="natural"&&<div style={{fontSize:12,color:"#a07850",marginBottom:6}}>({effectiveAcc==="sharp"?"one semitone higher than ":"one semitone lower than "}{noteLetter})</div>}
+          <button style={S.playBtn(playing)} onClick={()=>triggerPlay(selectedNote,accidental)}>
+            <span style={{fontSize:17}}>{playing?"♪":"▶"}</span>{playing?"Playing…":"Play again"}
+          </button>
+        </>) : (
+          <div style={{color:"#b09a78",fontSize:14,fontStyle:"italic",textAlign:"center"}}>Tap a position on the staff above<br/>to identify the note</div>
+        )}
+      </div>
+
+      <div style={S.refWrap}>
+        <div style={{fontSize:11,color:"#a08060",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:8,textAlign:"center"}}>Quick Reference — {currentClef.label}</div>
+        <div style={{display:"flex",gap:6}}>
+          {[{label:"Lines ↑",notes:currentClef.lines},{label:"Spaces ↑",notes:currentClef.spaces}].map(({label,notes})=>(
+            <div key={label} style={S.refCard}>
+              <div style={{fontSize:11,color:"#a07850",marginBottom:6,fontWeight:600}}>{label}</div>
+              {notes.map(n=><span key={n} style={S.chip(selectedNote===n)} onClick={()=>handleNoteClick(n)}>{n}</span>)}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{marginTop:16,fontSize:11,color:"#c4a882",textAlign:"center"}}>
+        Tip: tap Share → "Add to Home Screen" to use as an app · Works offline ✓
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

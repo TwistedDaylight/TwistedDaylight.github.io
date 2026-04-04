@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TwistedDaylight — Projects</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 1rem;
+    }
+    h1 { font-size: 1.8rem; margin-bottom: 0.4rem; }
+    .subtitle { color: #888; margin-bottom: 2.5rem; font-size: 0.95rem; }
+    .projects {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1rem;
+      width: 100%;
+      max-width: 800px;
+    }
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 1.2rem 1.4rem;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: #555; }
+    .card h2 { font-size: 1rem; margin-bottom: 0.3rem; }
+    .card p { font-size: 0.85rem; color: #888; }
+    .empty { color: #555; font-size: 0.9rem; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>TwistedDaylight</h1>
+  <p class="subtitle">Web projects — built on a phone</p>
+
+  <div class="projects">
+    <a class="card" href="/choir-note-helper/">
+      <h2>Choir Note Helper</h2>
+      <p>Find and identify music notes. Built for choir practice, works offline.</p>
+    </a>
+    <a class="card" href="/home-hq/">
+      <h2>Home HQ</h2>
+      <p>Household task list and home management app.</p>
+    </a>
+    <a class="card" href="/restaurant/">
+      <h2>Yummy Town Restaurant</h2>
+      <p>Kids play restaurant — take orders, cook food, serve customers.</p>
+    </a>
+  </div>
+</body>
+</html>

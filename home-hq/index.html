@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Home HQ" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <title>Home HQ</title>
+
+  <!-- PWA Manifest inlined as data URI so this stays a single file -->
+  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Home%20HQ%22%2C%22short_name%22%3A%22Home%20HQ%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231a1a2e%22%2C%22theme_color%22%3A%22%231a1a2e%22%7D" />
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { background: #1a1a2e; -webkit-tap-highlight-color: transparent; }
+
+    @keyframes pop {
+      0%   { transform: scale(0); opacity: 1; }
+      60%  { transform: scale(1.4); opacity: 1; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .chore-row        { transition: background 0.15s; cursor: pointer; }
+    .chore-row:hover  { background: rgba(255,255,255,0.06) !important; }
+    .filter-btn       { transition: all 0.2s; cursor: pointer; }
+    .filter-btn:hover { transform: translateY(-1px); }
+    .chain-btn        { transition: all 0.18s; }
+    .chain-btn:hover  { transform: translateX(2px); background: rgba(230,126,34,0.25) !important; }
+    .chain-btn:active { transform: scale(0.95); }
+
+    ::-webkit-scrollbar       { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const CHORES = [
+
+  // TIER 1: DAILY ESSENTIALS
+  { id:1,  tier:1, tierLabel:"Daily Essentials",
+    name:"Check washing machine state",
+    desc:"Is there a finished load waiting to be hung? Wet laundry in the drum? Check before loading anything new.",
+    time:2, freq:"Daily",
+    chain:22, chainLabel:"Sort & load a wash" },
+
+  { id:2,  tier:1, tierLabel:"Daily Essentials",
+    name:"Unload dishwasher",
+    desc:"Empty clean dishes so the kitchen cycle can keep flowing all day.",
+    time:10, freq:"Daily",
+    chain:3, chainLabel:"Load & run dishwasher" },
+
+  { id:3,  tier:1, tierLabel:"Daily Essentials",
+    name:"Load & run dishwasher",
+    desc:"Clear dirty dishes into the machine and start a cycle.",
+    time:10, freq:"Daily",
+    chain:4, chainLabel:"Wipe kitchen counters" },
+
+  { id:4,  tier:1, tierLabel:"Daily Essentials",
+    name:"Wipe kitchen counters",
+    desc:"Quick wipe of all surfaces, hob top, and splashback after meals.",
+    time:5, freq:"Daily",
+    chain:5, chainLabel:"Tidy kitchen" },
+
+  { id:5,  tier:1, tierLabel:"Daily Essentials",
+    name:"Tidy kitchen — put things away",
+    desc:"Return stray items to their home so counters are clear and calm.",
+    time:10, freq:"Daily" },
+
+  { id:6,  tier:1, tierLabel:"Daily Essentials",
+    name:"Quick living room reset",
+    desc:"Plump cushions, fold throws, collect cups and put clutter in its place.",
+    time:10, freq:"Daily" },
+
+  { id:7,  tier:1, tierLabel:"Daily Essentials",
+    name:"Make beds",
+    desc:"Straighten duvets and pillows in all bedrooms for an instant tidy look.",
+    time:10, freq:"Daily" },
+
+  { id:8,  tier:1, tierLabel:"Daily Essentials",
+    name:"Check & empty full bins",
+    desc:"Replace bags in kitchen and bathroom before they overflow.",
+    time:5, freq:"Daily",
+    chain:31, chainLabel:"Take out recycling" },
+
+  { id:9,  tier:1, tierLabel:"Daily Essentials",
+    name:"Sort & deal with mail",
+    desc:"Open post, file important items, and recycle junk — stop clutter piling up.",
+    time:5, freq:"Daily" },
+
+  { id:10, tier:1, tierLabel:"Daily Essentials",
+    name:"Wipe bathroom sink & mirror",
+    desc:"Fast wipe after morning rush keeps the bathroom looking fresh all day.",
+    time:5, freq:"Daily" },
+
+  { id:11, tier:1, tierLabel:"Daily Essentials",
+    name:"Pick up floor clutter",
+    desc:"Walk each room collecting anything on the floor — shoes, bags, clothes.",
+    time:10, freq:"Daily" },
+
+  // TIER 2: WEEKLY CLEANING
+  { id:12, tier:2, tierLabel:"Weekly Cleaning",
+    name:"Vacuum high-traffic areas",
+    desc:"Hoover hallway, stairs, living room, and kitchen floor quickly.",
+    time:15, freq:"2-3x/week",
+    chain:13, chainLabel:"Vacuum all rooms fully" },
+
+  { id:13, tier:2, tierLabel:"Weekly Cleaning",
+    name:"Vacuum all rooms fully",
+    desc:"Full vacuum of every carpeted or rugged area including under furniture.",
+    time:25, freq:"Weekly",
+    chain:14, chainLabel:"Mop hard floors" },
+
+  { id:14, tier:2, tierLabel:"Weekly Cleaning",
+    name:"Mop hard floors",
+    desc:"Damp-mop kitchen, hallway, and bathroom tiles after vacuuming.",
+    time:20, freq:"Weekly" },
+
+  { id:15, tier:2, tierLabel:"Weekly Cleaning",
+    name:"Clean toilet",
+    desc:"Scrub bowl, wipe seat, lid, and exterior — use cleaner and brush.",
+    time:10, freq:"Weekly",
+    chain:16, chainLabel:"Clean bath & shower" },
+
+  { id:16, tier:2, tierLabel:"Weekly Cleaning",
+    name:"Clean bath & shower",
+    desc:"Scrub tiles, taps, and the tub or shower tray to remove soap scum.",
+    time:15, freq:"Weekly",
+    chain:17, chainLabel:"Deep clean sink & surfaces" },
+
+  { id:17, tier:2, tierLabel:"Weekly Cleaning",
+    name:"Deep clean bathroom sink & surfaces",
+    desc:"Disinfect sink, taps, mirror, and all surfaces in the bathroom properly.",
+    time:10, freq:"Weekly" },
+
+  { id:18, tier:2, tierLabel:"Weekly Cleaning",
+    name:"Change & wash bed linen",
+    desc:"Strip beds, wash sheets and pillowcases, and remake with fresh linen.",
+    time:20, freq:"Weekly",
+    chain:22, chainLabel:"Put linen on to wash" },
+
+  { id:19, tier:2, tierLabel:"Weekly Cleaning",
+    name:"Wipe appliance exteriors",
+    desc:"Wipe microwave outside, fridge door, dishwasher front, and oven handle.",
+    time:10, freq:"Weekly" },
+
+  { id:20, tier:2, tierLabel:"Weekly Cleaning",
+    name:"Dust surfaces & shelves",
+    desc:"Dust all visible surfaces, shelves, skirting boards, and light switches.",
+    time:15, freq:"Weekly",
+    chain:12, chainLabel:"Vacuum now" },
+
+  { id:21, tier:2, tierLabel:"Weekly Cleaning",
+    name:"Clean microwave inside",
+    desc:"Wipe inside walls and turntable — steam-loosen grime with a damp cloth.",
+    time:10, freq:"Weekly" },
+
+  // TIER 3: LAUNDRY CYCLE
+  { id:22, tier:3, tierLabel:"Laundry Cycle",
+    name:"Sort & put on laundry wash",
+    desc:"Separate colours, choose the right programme, and start the machine.",
+    time:10, freq:"3-4x/week",
+    chain:23, chainLabel:"Hang or dry when done" },
+
+  { id:23, tier:3, tierLabel:"Laundry Cycle",
+    name:"Hang or tumble-dry laundry",
+    desc:"Transfer wet washing to airer, line, or dryer promptly to avoid musty smells.",
+    time:10, freq:"3-4x/week",
+    chain:24, chainLabel:"Fold when dry" },
+
+  { id:24, tier:3, tierLabel:"Laundry Cycle",
+    name:"Fold clean laundry",
+    desc:"Fold dried clothes neatly before they wrinkle and pile up into chaos.",
+    time:15, freq:"3-4x/week",
+    chain:25, chainLabel:"Put away" },
+
+  { id:25, tier:3, tierLabel:"Laundry Cycle",
+    name:"Put away folded laundry",
+    desc:"Return all folded items to the correct drawers and wardrobes.",
+    time:10, freq:"3-4x/week" },
+
+  { id:26, tier:3, tierLabel:"Laundry Cycle",
+    name:"Wash bath towels",
+    desc:"Wash all bathroom towels and hang fresh ones — do every 3-4 days.",
+    time:10, freq:"2x/week",
+    chain:23, chainLabel:"Hang when done" },
+
+  // TIER 4: SHOPPING & ADMIN
+  { id:27, tier:4, tierLabel:"Shopping & Admin",
+    name:"Check fridge & write shopping list",
+    desc:"Scan fridge and cupboards, note what is running low before the shop.",
+    time:10, freq:"Weekly",
+    chain:28, chainLabel:"Do the shop" },
+
+  { id:28, tier:4, tierLabel:"Shopping & Admin",
+    name:"Do the main grocery shop",
+    desc:"Complete the weekly shop in-store or online to stock up the household.",
+    time:30, freq:"Weekly",
+    chain:29, chainLabel:"Put shopping away" },
+
+  { id:29, tier:4, tierLabel:"Shopping & Admin",
+    name:"Put shopping away",
+    desc:"Unpack bags and store all items correctly in fridge, freezer, and cupboards.",
+    time:15, freq:"Weekly" },
+
+  { id:30, tier:4, tierLabel:"Shopping & Admin",
+    name:"Top-up / mid-week shop",
+    desc:"Mid-week trip or online order for fresh items like bread, fruit, and milk.",
+    time:15, freq:"2x/week",
+    chain:29, chainLabel:"Put shopping away" },
+
+  { id:31, tier:4, tierLabel:"Shopping & Admin",
+    name:"Take out recycling & bins",
+    desc:"Sort recycling into correct boxes and put bins out on collection day.",
+    time:10, freq:"Weekly" },
+
+  { id:32, tier:4, tierLabel:"Shopping & Admin",
+    name:"Pay bills & check accounts",
+    desc:"Review any outstanding payments, bank statements, or household accounts.",
+    time:15, freq:"Weekly" },
+
+  // TIER 5: HOUSEHOLD ROUTINE
+  { id:33, tier:5, tierLabel:"Household Routine",
+    name:"Tidy bedrooms",
+    desc:"Reset all bedrooms — items in their place, floor clear, surfaces tidy.",
+    time:15, freq:"Daily" },
+
+  { id:34, tier:5, tierLabel:"Household Routine",
+    name:"Prepare bags for the next day",
+    desc:"Check and pack everything needed for tomorrow the night before.",
+    time:10, freq:"Daily" },
+
+  { id:35, tier:5, tierLabel:"Household Routine",
+    name:"Sort clean laundry into correct rooms",
+    desc:"Distribute folded clothes to the right rooms and put them away.",
+    time:10, freq:"3x/week",
+    chain:25, chainLabel:"Put away" },
+
+  { id:36, tier:5, tierLabel:"Household Routine",
+    name:"Tidy storage & play areas",
+    desc:"Reset storage areas — return items to the right boxes and clear the floor.",
+    time:20, freq:"Weekly" },
+
+  // TIER 6: DEEPER WEEKLY TASKS
+  { id:37, tier:6, tierLabel:"Deeper Weekly Tasks",
+    name:"Clean fridge interior",
+    desc:"Wipe shelves and drawers, discard old food, check dates on leftovers.",
+    time:20, freq:"Weekly",
+    chain:27, chainLabel:"Update shopping list" },
+
+  { id:38, tier:6, tierLabel:"Deeper Weekly Tasks",
+    name:"Sweep & clean entrance / hallway",
+    desc:"Clear shoes, sweep floor, wipe door handles and light switches.",
+    time:10, freq:"Weekly" },
+
+  { id:39, tier:6, tierLabel:"Deeper Weekly Tasks",
+    name:"Wipe dining table & chairs",
+    desc:"Clean down the table surface and chair seats after the week's meals.",
+    time:10, freq:"Weekly" },
+
+  { id:40, tier:6, tierLabel:"Deeper Weekly Tasks",
+    name:"Clean kitchen bin (interior & lid)",
+    desc:"Wipe inside the bin with disinfectant spray to kill bacteria and smells.",
+    time:10, freq:"Weekly" },
+
+  { id:41, tier:6, tierLabel:"Deeper Weekly Tasks",
+    name:"Descale kettle",
+    desc:"Run a descaling cycle to keep the kettle efficient and water tasting clean.",
+    time:15, freq:"Monthly" },
+
+  { id:42, tier:6, tierLabel:"Deeper Weekly Tasks",
+    name:"Wipe down light switches & door handles",
+    desc:"Disinfect all high-touch points throughout the home — quick but impactful.",
+    time:10, freq:"Weekly" },
+
+  { id:43, tier:6, tierLabel:"Deeper Weekly Tasks",
+    name:"Check & top up household supplies",
+    desc:"Restock cleaning products, bin bags, toilet rolls, and soap dispensers.",
+    time:10, freq:"Weekly",
+    chain:27, chainLabel:"Add to shopping list" },
+
+  // TIER 7: MONTHLY DEEP CLEANS
+  { id:44, tier:7, tierLabel:"Monthly Deep Cleans",
+    name:"Deep clean oven",
+    desc:"Remove racks, soak and scrub the oven interior to remove grease build-up.",
+    time:30, freq:"Monthly" },
+
+  { id:45, tier:7, tierLabel:"Monthly Deep Cleans",
+    name:"Clean dishwasher (filter & cycle)",
+    desc:"Remove and rinse the filter, run a hot cleaning cycle with dishwasher salt.",
+    time:15, freq:"Monthly" },
+
+  { id:46, tier:7, tierLabel:"Monthly Deep Cleans",
+    name:"Clean washing machine (drum & seal)",
+    desc:"Wipe drum seal, clean detergent drawer, run an empty hot maintenance wash.",
+    time:15, freq:"Monthly" },
+
+  { id:47, tier:7, tierLabel:"Monthly Deep Cleans",
+    name:"Vacuum sofa & upholstered furniture",
+    desc:"Use the upholstery attachment to hoover cushions, crevices, and under cushions.",
+    time:15, freq:"Monthly" },
+
+  { id:48, tier:7, tierLabel:"Monthly Deep Cleans",
+    name:"Wash pillowcases & duvet covers",
+    desc:"Full bedding wash for every bed — helps with allergies and freshness.",
+    time:20, freq:"Monthly",
+    chain:22, chainLabel:"Put wash on" },
+
+  { id:49, tier:7, tierLabel:"Monthly Deep Cleans",
+    name:"Deep clean bathroom tiles & grout",
+    desc:"Scrub grout lines and tile surfaces with a brush to tackle mould and grime.",
+    time:25, freq:"Monthly" },
+
+  { id:50, tier:7, tierLabel:"Monthly Deep Cleans",
+    name:"Organise & declutter a cupboard or drawer",
+    desc:"Pick one storage space, remove everything, sort, and put back neatly.",
+    time:20, freq:"Monthly" },
+
+  { id:51, tier:7, tierLabel:"Monthly Deep Cleans",
+    name:"Wipe walls & skirting boards",
+    desc:"Remove scuffs and dust from walls, skirting, banisters, and door frames.",
+    time:20, freq:"Monthly" },
+
+  // TIER 8: LESS FREQUENT / SEASONAL
+  { id:52, tier:8, tierLabel:"Less Frequent / Seasonal",
+    name:"Clean windows (inside)",
+    desc:"Spray and buff all internal window panes to a streak-free shine.",
+    time:25, freq:"Monthly",
+    chain:53, chainLabel:"Clean outside too" },
+
+  { id:53, tier:8, tierLabel:"Less Frequent / Seasonal",
+    name:"Clean windows (outside)",
+    desc:"Wash external window surfaces — use an extendable pole or squeegee.",
+    time:30, freq:"Every 2 months" },
+
+  { id:54, tier:8, tierLabel:"Less Frequent / Seasonal",
+    name:"Vacuum mattresses",
+    desc:"Hoover and flip mattresses to extend their life and reduce dust mites.",
+    time:20, freq:"Every 2 months",
+    chain:48, chainLabel:"Wash bedding next" },
+
+  { id:55, tier:8, tierLabel:"Less Frequent / Seasonal",
+    name:"Wash bath mats & shower curtain",
+    desc:"Machine-wash bath mats and the shower curtain to stop mildew and odour.",
+    time:10, freq:"Monthly",
+    chain:22, chainLabel:"Put wash on" },
+
+  { id:56, tier:8, tierLabel:"Less Frequent / Seasonal",
+    name:"Clean extractor fan & vents",
+    desc:"Remove dust from kitchen extractor, bathroom fan, and air vents.",
+    time:15, freq:"Every 2 months" },
+
+  { id:57, tier:8, tierLabel:"Less Frequent / Seasonal",
+    name:"Declutter storage & belongings",
+    desc:"Go through storage areas — donate or discard unused items, reorganise what remains.",
+    time:30, freq:"Seasonal" },
+
+  { id:58, tier:8, tierLabel:"Less Frequent / Seasonal",
+    name:"Deep clean fridge & freezer",
+    desc:"Defrost freezer, wipe all surfaces, and reorganise food storage properly.",
+    time:30, freq:"Every 2 months",
+    chain:27, chainLabel:"Update shopping list" },
+
+  { id:59, tier:8, tierLabel:"Less Frequent / Seasonal",
+    name:"Clean cupboard & pantry shelves",
+    desc:"Empty, wipe down shelves, check expiry dates, and restock neatly.",
+    time:20, freq:"Every 2 months",
+    chain:27, chainLabel:"Update shopping list" },
+
+  // TIER 9: HOME REPAIRS & MAINTENANCE
+  { id:60, tier:9, tierLabel:"Home Repairs & Maintenance",
+    name:"Replace light bulbs",
+    desc:"Check and replace any blown bulbs in light fittings around the home.",
+    time:10, freq:"As needed",
+    chain:43, chainLabel:"Add bulbs to supplies list" },
+
+  { id:61, tier:9, tierLabel:"Home Repairs & Maintenance",
+    name:"Fix minor DIY issues",
+    desc:"Tighten loose screws, fix stiff doors, patch minor holes in walls.",
+    time:20, freq:"As needed" },
+
+  { id:62, tier:9, tierLabel:"Home Repairs & Maintenance",
+    name:"Unclog drains",
+    desc:"Clear slow-draining sinks or baths using a drain snake or cleaner.",
+    time:15, freq:"As needed" },
+
+  { id:63, tier:9, tierLabel:"Home Repairs & Maintenance",
+    name:"Test smoke & carbon monoxide alarms",
+    desc:"Press test button on all alarms and replace batteries if needed.",
+    time:10, freq:"Monthly",
+    chain:43, chainLabel:"Add batteries to supplies list" },
+
+  { id:64, tier:9, tierLabel:"Home Repairs & Maintenance",
+    name:"Bleed radiators",
+    desc:"Release trapped air from radiators before winter to improve heating efficiency.",
+    time:20, freq:"Annually (autumn)" },
+
+  { id:65, tier:9, tierLabel:"Home Repairs & Maintenance",
+    name:"Check boiler & heating system",
+    desc:"Ensure the boiler is serviced and heating is working before cold weather.",
+    time:15, freq:"Annually (autumn)" },
+
+  { id:66, tier:9, tierLabel:"Home Repairs & Maintenance",
+    name:"Clean gutters",
+    desc:"Remove leaves and debris from gutters and downpipes to prevent blockages.",
+    time:30, freq:"Annually (autumn)" },
+
+  // TIER 10: OUTDOOR & GARDEN
+  { id:67, tier:10, tierLabel:"Outdoor & Garden",
+    name:"Sweep front step & path",
+    desc:"Brush leaves, mud, and debris from the entrance path and doorstep.",
+    time:10, freq:"Weekly" },
+
+  { id:68, tier:10, tierLabel:"Outdoor & Garden",
+    name:"Mow the lawn",
+    desc:"Cut the grass to a neat length — keep edges tidy if possible.",
+    time:20, freq:"Weekly (growing season)" },
+
+  { id:69, tier:10, tierLabel:"Outdoor & Garden",
+    name:"Weed garden beds & paths",
+    desc:"Pull weeds from flowerbeds and between paving slabs before they spread.",
+    time:20, freq:"Weekly (spring/summer)" },
+
+  { id:70, tier:10, tierLabel:"Outdoor & Garden",
+    name:"Tidy garden — rake & clear",
+    desc:"Rake leaves, clear dead plants, and tidy outdoor furniture and equipment.",
+    time:25, freq:"Monthly" },
+
+  { id:71, tier:10, tierLabel:"Outdoor & Garden",
+    name:"Clean outdoor furniture & equipment",
+    desc:"Wipe down outdoor furniture and check equipment for any damage.",
+    time:20, freq:"Seasonal" },
+
+  { id:72, tier:10, tierLabel:"Outdoor & Garden",
+    name:"Wash car",
+    desc:"Rinse, soap, and dry the car — check tyre pressures while you are there.",
+    time:30, freq:"Monthly" },
+];
+
+const TIER_COLORS = {
+  1:  { badge:"#FF6D00" },
+  2:  { badge:"#43A047" },
+  3:  { badge:"#1E88E5" },
+  4:  { badge:"#8E24AA" },
+  5:  { badge:"#E91E63" },
+  6:  { badge:"#FBC02D" },
+  7:  { badge:"#00897B" },
+  8:  { badge:"#7B1FA2" },
+  9:  { badge:"#6D4C41" },
+  10: { badge:"#388E3C" },
+};
+
+const STORAGE_KEY = "homehq-v2";
+const CHORE_MAP   = Object.fromEntries(CHORES.map(c => [c.id, c]));
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { completed: {} };
+}
+
+function App() {
+  const [state,         setState]         = useState(loadState);
+  const [filter,        setFilter]        = useState("all");
+  const [expandedTiers, setExpandedTiers] = useState({ 1:true, 2:true, 3:true });
+  const [search,        setSearch]        = useState("");
+  const [confetti,      setConfetti]      = useState(false);
+  const [highlight,     setHighlight]     = useState(null);
+  const rowRefs = useRef({});
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+  }, [state]);
+
+  const jumpToChore = (id) => {
+    const chore = CHORE_MAP[id];
+    if (!chore) return;
+    setExpandedTiers(s => ({ ...s, [chore.tier]: true }));
+    setFilter("all");
+    setSearch("");
+    setHighlight(id);
+    setTimeout(() => {
+      const el = rowRefs.current[id];
+      if (el) el.scrollIntoView({ behavior:"smooth", block:"center" });
+    }, 80);
+    setTimeout(() => setHighlight(null), 2200);
+  };
+
+  const toggle = (id) => {
+    const wasDone = !!state.completed[id];
+    setState(s => {
+      const updated = { ...s.completed };
+      if (updated[id]) { delete updated[id]; }
+      else {
+        updated[id] = new Date().toISOString();
+        if (!wasDone) { setConfetti(true); setTimeout(() => setConfetti(false), 900); }
+      }
+      return { ...s, completed: updated };
+    });
+  };
+
+  const resetAll = () => {
+    if (window.confirm("Reset all checkmarks for a fresh day?")) {
+      setState({ completed: {} });
+    }
+  };
+
+  const tiers          = [...new Set(CHORES.map(c => c.tier))];
+  const filteredChores = CHORES.filter(c => {
+    if (filter === "done" && !state.completed[c.id]) return false;
+    if (filter === "todo" && state.completed[c.id])  return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!c.name.toLowerCase().includes(q) && !c.desc.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const completedCount = Object.keys(state.completed).length;
+  const pct            = Math.round((completedCount / CHORES.length) * 100);
+  const nextChore      = CHORES.find(c => !state.completed[c.id]);
+  const toggleTier     = t => setExpandedTiers(s => ({ ...s, [t]: !s[t] }));
+
+  return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)", fontFamily:"Georgia,'Times New Roman',serif", color:"#f0ede8" }}>
+
+      {confetti && (
+        <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ fontSize:72, color:"#f39c12", animation:"pop 0.9s ease-out forwards" }}>✓</div>
+        </div>
+      )}
+
+      {/* HEADER */}
+      <div style={{ padding:"28px 20px 20px", maxWidth:760, margin:"0 auto" }}>
+        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", flexWrap:"wrap", gap:12 }}>
+          <div>
+            <div style={{ fontSize:10, letterSpacing:4, textTransform:"uppercase", color:"#a89f94", marginBottom:5 }}>Household Priority List</div>
+            <h1 style={{ margin:0, fontSize:34, fontWeight:"normal", letterSpacing:"-1px", color:"#f5ede0", lineHeight:1 }}>Home HQ</h1>
+            <div style={{ marginTop:5, fontSize:12, color:"#8a9bb5" }}>
+              {new Date().toLocaleDateString("en-GB", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
+            </div>
+          </div>
+          <button onClick={resetAll} style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", color:"#a89f94", padding:"8px 16px", borderRadius:6, cursor:"pointer", fontSize:12, letterSpacing:1, marginTop:4 }}>
+            Reset Day
+          </button>
+        </div>
+
+        {/* PROGRESS */}
+        <div style={{ marginTop:22, background:"rgba(255,255,255,0.07)", borderRadius:12, padding:"15px 20px" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:9 }}>
+            <span style={{ fontSize:12, color:"#c4bdb5" }}>Overall Progress</span>
+            <span style={{ fontSize:20, fontWeight:"bold", color:"#f5ede0" }}>{completedCount}<span style={{ fontSize:12, color:"#8a9bb5", fontWeight:"normal" }}>/{CHORES.length}</span></span>
+          </div>
+          <div style={{ background:"rgba(255,255,255,0.1)", borderRadius:99, height:8, overflow:"hidden" }}>
+            <div style={{ width:`${pct}%`, height:"100%", background:"linear-gradient(90deg,#e67e22,#f39c12)", borderRadius:99, transition:"width 0.4s ease" }} />
+          </div>
+          <div style={{ marginTop:6, fontSize:11, color:"#8a9bb5" }}>{pct}% complete</div>
+        </div>
+
+        {/* NEXT PRIORITY */}
+        {nextChore && filter !== "done" && (
+          <div style={{ marginTop:13, background:"linear-gradient(135deg,rgba(230,126,34,0.2),rgba(243,156,18,0.1))", border:"1px solid rgba(230,126,34,0.35)", borderRadius:10, padding:"12px 16px", animation:"slideIn 0.3s ease" }}>
+            <div style={{ fontSize:9, letterSpacing:3, textTransform:"uppercase", color:"#e67e22", marginBottom:3 }}>Next Priority</div>
+            <div style={{ fontSize:15, color:"#f5ede0" }}>{nextChore.name}</div>
+            <div style={{ fontSize:11, color:"#a89f94", marginTop:2 }}>{nextChore.desc}</div>
+          </div>
+        )}
+
+        {/* FILTERS + SEARCH */}
+        <div style={{ marginTop:16, display:"flex", gap:7, flexWrap:"wrap", alignItems:"center" }}>
+          {["all","todo","done"].map(f => (
+            <button key={f} className="filter-btn" onClick={() => setFilter(f)} style={{
+              padding:"6px 15px", borderRadius:99, border:"1px solid",
+              borderColor: filter===f ? "#e67e22" : "rgba(255,255,255,0.12)",
+              background:  filter===f ? "rgba(230,126,34,0.2)" : "rgba(255,255,255,0.04)",
+              color:       filter===f ? "#f5ede0" : "#8a9bb5",
+              fontSize:12,
+            }}>{f==="todo"?"To Do":f==="done"?"Done":"All"}</button>
+          ))}
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search chores..."
+            style={{ marginLeft:"auto", background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:99, padding:"6px 14px", color:"#f0ede8", fontSize:12, outline:"none", width:148 }}
+          />
+        </div>
+      </div>
+
+      {/* CHORE LIST */}
+      <div style={{ maxWidth:760, margin:"0 auto", padding:"0 20px 60px" }}>
+        {tiers.map(tier => {
+          const tierChores = filteredChores.filter(c => c.tier === tier);
+          if (!tierChores.length) return null;
+          const label    = CHORES.find(c => c.tier === tier).tierLabel;
+          const col      = TIER_COLORS[tier];
+          const tierDone = tierChores.filter(c => state.completed[c.id]).length;
+          const isOpen   = expandedTiers[tier] !== false;
+
+          return (
+            <div key={tier} style={{ marginBottom:13 }}>
+              <button onClick={() => toggleTier(tier)} style={{
+                width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
+                background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.09)",
+                borderRadius: isOpen ? "10px 10px 0 0" : 10, padding:"11px 16px",
+                cursor:"pointer", color:"#f0ede8", textAlign:"left",
+              }}>
+                <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+                  <span style={{ background:col.badge, color:"#fff", borderRadius:5, fontSize:9, fontWeight:"bold", padding:"2px 7px", letterSpacing:1, fontFamily:"monospace" }}>P{tier}</span>
+                  <span style={{ fontSize:13 }}>{label}</span>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+                  <span style={{ fontSize:11, color:"#8a9bb5" }}>{tierDone}/{tierChores.length}</span>
+                  <span style={{ color:"#8a9bb5", fontSize:17 }}>{isOpen ? "-" : "+"}</span>
+                </div>
+              </button>
+
+              {isOpen && (
+                <div style={{ border:"1px solid rgba(255,255,255,0.09)", borderTop:"none", borderRadius:"0 0 10px 10px", overflow:"hidden" }}>
+                  {tierChores.map((chore, i) => {
+                    const done = !!state.completed[chore.id];
+                    const lit  = highlight === chore.id;
+                    return (
+                      <div
+                        key={chore.id}
+                        ref={el => rowRefs.current[chore.id] = el}
+                        style={{
+                          borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                          background: lit ? "rgba(230,126,34,0.13)" : done ? "rgba(255,255,255,0.02)" : "transparent",
+                          outline: lit ? "1px solid rgba(230,126,34,0.45)" : "none",
+                          transition: "background 0.35s, outline 0.35s",
+                        }}
+                      >
+                        {/* Tap row to tick */}
+                        <div
+                          className="chore-row"
+                          onClick={() => toggle(chore.id)}
+                          style={{ display:"flex", alignItems:"flex-start", gap:13, padding:"13px 16px", paddingBottom: chore.chain ? "8px" : "13px" }}
+                        >
+                          <div style={{
+                            flexShrink:0, width:21, height:21, borderRadius:6, marginTop:1,
+                            border:`2px solid ${done ? col.badge : "rgba(255,255,255,0.2)"}`,
+                            background: done ? col.badge : "transparent",
+                            display:"flex", alignItems:"center", justifyContent:"center",
+                            transition:"all 0.15s",
+                          }}>
+                            {done && <span style={{ color:"#fff", fontSize:12 }}>&#10003;</span>}
+                          </div>
+
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:7, flexWrap:"wrap" }}>
+                              <span style={{ fontSize:13, color: done?"#6b7a8d":"#f0ede8", textDecoration: done?"line-through":"none", transition:"color 0.15s" }}>{chore.name}</span>
+                              <span style={{ fontSize:9, color:col.badge, background:`${col.badge}22`, borderRadius:4, padding:"1px 6px", whiteSpace:"nowrap" }}>{chore.freq}</span>
+                              <span style={{ fontSize:9, color:"#6b7a8d", whiteSpace:"nowrap" }}>{chore.time} min</span>
+                            </div>
+                            <div style={{ marginTop:3, fontSize:11, color: done?"#4a5568":"#8a9bb5", lineHeight:1.5 }}>{chore.desc}</div>
+                            {done && state.completed[chore.id] && (
+                              <div style={{ fontSize:10, color:"#4a6741", marginTop:2 }}>
+                                Done at {new Date(state.completed[chore.id]).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Chain button */}
+                        {chore.chain && (
+                          <div style={{ padding:"0 16px 11px 50px" }}>
+                            <button
+                              className="chain-btn"
+                              onClick={e => { e.stopPropagation(); jumpToChore(chore.chain); }}
+                              style={{
+                                display:"inline-flex", alignItems:"center", gap:6,
+                                background:"rgba(230,126,34,0.11)",
+                                border:"1px solid rgba(230,126,34,0.28)",
+                                borderRadius:6, padding:"4px 12px",
+                                color:"#e8a87c", fontSize:11, cursor:"pointer",
+                              }}
+                            >
+                              <span style={{ fontSize:11, opacity:0.9 }}>&#x26D3;</span>
+                              {chore.chainLabel} &rarr;
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ textAlign:"center", padding:"0 0 30px", fontSize:10, color:"#4a5568", letterSpacing:1 }}>
+        TAP ANY CHORE TO MARK COMPLETE &middot; RESET DAILY
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+
+<!-- SERVICE WORKER — inline blob so the file stays self-contained on Netlify -->
+<script>
+(function () {
+  if (!("serviceWorker" in navigator)) return;
+
+  var SW = [
+    'const CACHE = "homehq-v2";',
+    'const ASSETS = [',
+    '  "/",',
+    '  "https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js",',
+    '  "https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js",',
+    '  "https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"',
+    '];',
+    'self.addEventListener("install", e => {',
+    '  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));',
+    '});',
+    'self.addEventListener("activate", e => {',
+    '  e.waitUntil(caches.keys().then(keys =>',
+    '    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))',
+    '  ).then(() => self.clients.claim()));',
+    '});',
+    'self.addEventListener("fetch", e => {',
+    '  e.respondWith(',
+    '    caches.match(e.request).then(hit => {',
+    '      if (hit) return hit;',
+    '      return fetch(e.request).then(res => {',
+    '        if (!res || res.status !== 200 || res.type === "opaque") return res;',
+    '        var clone = res.clone();',
+    '        caches.open(CACHE).then(c => c.put(e.request, clone));',
+    '        return res;',
+    '      }).catch(() => caches.match("/"));',
+    '    })',
+    '  );',
+    '});'
+  ].join("\n");
+
+  var blob = new Blob([SW], { type: "text/javascript" });
+  var url  = URL.createObjectURL(blob);
+
+  navigator.serviceWorker.register(url, { scope: "/" })
+    .then(function (reg) {
+      console.log("[HomeHQ] SW registered:", reg.scope);
+      URL.revokeObjectURL(url);
+    })
+    .catch(function (err) {
+      console.warn("[HomeHQ] SW failed:", err);
+    });
+})();
+</script>
+
+</body>
+</html>
