@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Guitar Chords</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #111118;
+      --surface:      #1c1c28;
+      --surface2:     #242435;
+      --accent:       #f0a030;
+      --accent-dark:  #c07818;
+      --text:         #f0ead6;
+      --muted:        #706860;
+      --chord-bg:     #182040;
+      --chord-border: #2a3f70;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    h1 {
+      text-align: center;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    /* ── Key display ── */
+    .key-row {
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--muted);
+      flex-shrink: 0;
+      min-height: 1.4em;
+    }
+    .key-row strong {
+      color: var(--accent);
+      font-size: 1.05rem;
+    }
+
+    /* ── Chord boxes ── */
+    .chords {
+      display: flex;
+      gap: 6px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .chord {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--chord-bg);
+      border: 1.5px solid var(--chord-border);
+      border-radius: 12px;
+      padding: 6px 4px;
+      gap: 3px;
+    }
+
+    .chord-num {
+      font-size: 0.6rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+
+    .chord-name {
+      font-size: clamp(1.3rem, 5vw, 1.8rem);
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.01em;
+    }
+
+    /* ── Pentatonic panel ── */
+    .pent {
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 8px 10px;
+      flex-shrink: 0;
+    }
+
+    .pent-title {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .pent-items {
+      display: flex;
+      gap: 8px;
+    }
+
+    .pent-item {
+      flex: 1;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 7px 6px;
+      text-align: center;
+    }
+
+    .pent-fret {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .pent-open {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+      padding-top: 6px;
+    }
+
+    .pent-note {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-top: 2px;
+    }
+
+    .pent-desc {
+      font-size: 0.58rem;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+
+    /* ── Generate button ── */
+    .btn {
+      padding: 15px;
+      background: var(--accent);
+      color: #1a0e00;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s;
+    }
+    .btn:active { background: var(--accent-dark); }
+
+    /* ── Placeholder shown before first generate ── */
+    .placeholder {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<h1>GUITAR CHORDS</h1>
+
+<div class="key-row" id="key-row"></div>
+
+<div id="placeholder" class="placeholder">Tap Generate for a chord progression</div>
+<div class="chords" id="chords" style="display:none"></div>
+
+<div class="pent" id="pent" style="display:none">
+  <div class="pent-title">Pentatonic Improv &nbsp;·&nbsp; low E string root</div>
+  <div class="pent-items" id="pent-items"></div>
+</div>
+
+<button class="btn" onclick="generate()">&#127928; Generate</button>
+
+<script>
+'use strict';
+
+// ── Music theory ──────────────────────────────────────────────────────────────
+
+// Chromatic notes (internal representation uses sharps throughout)
+const NOTES   = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+// Display names prefer flats where guitarists expect them (Bb, Eb, Ab)
+const DISPLAY = ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+
+// Low E string fret for a note index: E is open (0), everything follows chromatically
+// fret = (noteIndex - NOTES.indexOf('E') + 12) % 12 = (noteIndex - 4 + 12) % 12
+function fretOf(noteIdx) { return (noteIdx - 4 + 12) % 12; }
+
+// Scale intervals
+const MAJ_IVLS = [0, 2, 4, 5, 7, 9, 11];
+const MIN_IVLS = [0, 2, 3, 5, 7, 8, 10];
+
+// Diatonic chord quality at each scale degree
+const MAJ_QUAL = ['maj','min','min','maj','maj','min','dim'];
+const MIN_QUAL = ['min','dim','maj','min','min','maj','maj'];
+
+// Roman numerals for display
+const MAJ_NUMS = ['I','ii','iii','IV','V','vi','vii°'];
+const MIN_NUMS = ['i','ii°','III','iv','v','VI','VII'];
+
+// Build all 7 diatonic chords for a key
+function buildKey(rootIdx, mode) {
+  const ivls  = mode === 'major' ? MAJ_IVLS : MIN_IVLS;
+  const quals = mode === 'major' ? MAJ_QUAL : MIN_QUAL;
+  const nums  = mode === 'major' ? MAJ_NUMS : MIN_NUMS;
+  return ivls.map((iv, i) => {
+    const ni = (rootIdx + iv) % 12;
+    return { noteIdx: ni, display: DISPLAY[ni], quality: quals[i], numeral: nums[i] };
+  });
+}
+
+// Format a chord name for display: "G", "Em", "B°"
+function chordName(display, quality) {
+  if (quality === 'min') return display + 'm';
+  if (quality === 'dim') return display + '°';
+  return display;
+}
+
+// Pentatonic positions: returns two { fret, note, desc } objects
+function pentInfo(rootIdx, mode) {
+  const rootDisp = DISPLAY[rootIdx];
+  const rootFret = fretOf(rootIdx);
+
+  if (mode === 'major') {
+    // Relative minor = 6th degree = root + 9 semitones
+    const relIdx  = (rootIdx + 9) % 12;
+    const relDisp = DISPLAY[relIdx];
+    return [
+      { fret: rootFret, note: rootDisp,        desc: 'Major pentatonic' },
+      { fret: fretOf(relIdx), note: relDisp + 'm', desc: 'Minor pent (relative)' },
+    ];
+  } else {
+    // Relative major = 3rd degree = root + 3 semitones
+    const relIdx  = (rootIdx + 3) % 12;
+    const relDisp = DISPLAY[relIdx];
+    return [
+      { fret: rootFret,       note: rootDisp + 'm', desc: 'Minor pentatonic' },
+      { fret: fretOf(relIdx), note: relDisp,         desc: 'Major pent (relative)' },
+    ];
+  }
+}
+
+// ── Progressions (degree indices into the 7-chord diatonic scale) ─────────────
+
+// Each entry: array of 4 degree indices (0-based)
+const MAJ_PROGS = [
+  [0, 4, 5, 3],  // I  – V  – vi – IV   (pop axis)
+  [0, 5, 3, 4],  // I  – vi – IV – V    (50s)
+  [0, 3, 4, 3],  // I  – IV – V  – IV
+  [5, 3, 0, 4],  // vi – IV – I  – V
+  [0, 2, 3, 4],  // I  – iii– IV – V
+  [0, 3, 5, 4],  // I  – IV – vi – V
+  [0, 4, 3, 4],  // I  – V  – IV – V    (blues turnaround feel)
+  [1, 4, 0, 3],  // ii – V  – I  – IV   (jazz-flavoured)
+  [0, 3, 4, 5],  // I  – IV – V  – vi
+  [0, 5, 3, 0],  // I  – vi – IV – I
+];
+
+const MIN_PROGS = [
+  [0, 6, 5, 6],  // i   – VII – VI  – VII  (Andalusian)
+  [0, 5, 2, 6],  // i   – VI  – III – VII
+  [0, 3, 6, 2],  // i   – iv  – VII – III
+  [0, 4, 5, 6],  // i   – v   – VI  – VII
+  [0, 5, 6, 0],  // i   – VI  – VII – i
+  [0, 2, 6, 5],  // i   – III – VII – VI
+  [0, 3, 4, 0],  // i   – iv  – v   – i
+];
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// ── Main generator ────────────────────────────────────────────────────────────
+
+function generate() {
+  const rootIdx = Math.floor(Math.random() * 12);
+  const mode    = Math.random() < 0.55 ? 'major' : 'minor';
+  const progs   = mode === 'major' ? MAJ_PROGS : MIN_PROGS;
+  const prog    = pick(progs);
+  const key     = buildKey(rootIdx, mode);
+
+  // Render key label
+  const keyName = DISPLAY[rootIdx] + (mode === 'major' ? ' Major' : ' Minor');
+  document.getElementById('key-row').innerHTML = 'Key: <strong>' + keyName + '</strong>';
+
+  // Render chord boxes
+  const chordsEl = document.getElementById('chords');
+  chordsEl.innerHTML = '';
+  prog.forEach(deg => {
+    const c   = key[deg];
+    const box = document.createElement('div');
+    box.className = 'chord';
+    box.innerHTML =
+      '<div class="chord-num">' + c.numeral + '</div>' +
+      '<div class="chord-name">' + chordName(c.display, c.quality) + '</div>';
+    chordsEl.appendChild(box);
+  });
+
+  // Render pentatonic panel
+  const pents   = pentInfo(rootIdx, mode);
+  const pentEl  = document.getElementById('pent-items');
+  pentEl.innerHTML = '';
+  pents.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'pent-item';
+    const fretHTML = p.fret === 0
+      ? '<div class="pent-open">Open</div>'
+      : '<div class="pent-fret">' + p.fret + '</div>';
+    item.innerHTML =
+      fretHTML +
+      '<div class="pent-note">' + p.note + '</div>' +
+      '<div class="pent-desc">' + p.desc + '</div>';
+    pentEl.appendChild(item);
+  });
+
+  // Show result, hide placeholder
+  document.getElementById('placeholder').style.display = 'none';
+  chordsEl.style.display    = 'flex';
+  document.getElementById('pent').style.display = 'block';
+}
+</script>
+</body>
+</html>
