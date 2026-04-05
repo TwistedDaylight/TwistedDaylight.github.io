@@ -76,6 +76,13 @@
       border-radius: 12px;
       padding: 6px 4px;
       gap: 3px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .chord:active {
+      background: #203060;
+      border-color: var(--accent);
     }
 
     .chord-num {
@@ -195,6 +202,59 @@
       color: var(--text);
     }
 
+    /* ── Chord modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-box {
+      background: var(--surface2);
+      border: 1px solid var(--chord-border);
+      border-radius: 18px;
+      padding: 20px 22px 16px;
+      text-align: center;
+      min-width: 170px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+    }
+
+    .modal-chord-name {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 14px;
+    }
+
+    .modal-diagram {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+
+    .modal-desc {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 14px;
+      min-height: 1em;
+    }
+
+    .modal-close {
+      padding: 8px 22px;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid #3a3a4a;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     /* ── Placeholder shown before first generate ── */
     .placeholder {
       flex: 1;
@@ -228,6 +288,16 @@
 </div>
 
 <button class="btn" onclick="generate()">&#127928; Generate</button>
+
+<!-- Chord diagram modal -->
+<div id="modal" class="modal-overlay" style="display:none" onclick="closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div id="modal-name" class="modal-chord-name"></div>
+    <div id="modal-diagram" class="modal-diagram"></div>
+    <div id="modal-desc" class="modal-desc"></div>
+    <button class="modal-close" onclick="closeModal()">Close</button>
+  </div>
+</div>
 
 <script>
 'use strict';
@@ -295,6 +365,115 @@ function pentInfo(rootIdx, mode) {
       { fret: fretOf(relIdx), note: relDisp,         desc: 'Major pent (relative)' },
     ];
   }
+}
+
+// ── Chord diagram data ────────────────────────────────────────────────────────
+// frets: [lowE, A, D, G, B, highE]  -1=mute  0=open  N=absolute fret
+// base: lowest fret shown in diagram (1 = nut visible)
+const CHORD_DATA = {
+  // ── Major ──────────────────────────────────────────
+  'C':   { f:[-1,3,2,0,1,0],   b:1 },
+  'C#':  { f:[-1,4,6,6,6,4],   b:4 },
+  'D':   { f:[-1,-1,0,2,3,2],  b:1 },
+  'Eb':  { f:[-1,-1,1,3,4,3],  b:1 },
+  'E':   { f:[0,2,2,1,0,0],    b:1 },
+  'F':   { f:[1,1,2,3,3,1],    b:1 },
+  'F#':  { f:[2,4,4,3,2,2],    b:2 },
+  'G':   { f:[3,2,0,0,0,3],    b:1 },
+  'Ab':  { f:[4,6,6,5,4,4],    b:4 },
+  'A':   { f:[-1,0,2,2,2,0],   b:1 },
+  'Bb':  { f:[-1,1,3,3,3,1],   b:1 },
+  'B':   { f:[-1,2,4,4,4,2],   b:2 },
+  // ── Minor ──────────────────────────────────────────
+  'Cm':  { f:[-1,3,5,5,4,3],   b:3 },
+  'C#m': { f:[-1,4,6,6,5,4],   b:4 },
+  'Dm':  { f:[-1,-1,0,2,3,1],  b:1 },
+  'Ebm': { f:[-1,-1,1,3,4,2],  b:1 },
+  'Em':  { f:[0,2,2,0,0,0],    b:1 },
+  'Fm':  { f:[1,3,3,1,1,1],    b:1 },
+  'F#m': { f:[2,4,4,2,2,2],    b:2 },
+  'Gm':  { f:[3,5,5,3,3,3],    b:3 },
+  'Abm': { f:[4,6,6,4,4,4],    b:4 },
+  'Am':  { f:[-1,0,2,2,1,0],   b:1 },
+  'Bbm': { f:[-1,1,3,3,2,1],   b:1 },
+  'Bm':  { f:[-1,2,4,4,3,2],   b:2 },
+};
+
+// ── SVG chord diagram renderer ────────────────────────────────────────────────
+function chordDiagramSVG(dataKey) {
+  const data = CHORD_DATA[dataKey];
+  if (!data) return '<p style="color:#666;font-size:.8rem;padding:8px">No diagram</p>';
+
+  const frets = data.f, base = data.b;
+  const SG=19, FG=21, ML=13, MT=22, NF=4;
+  const MR = base > 1 ? 26 : 8;
+  const W = ML + 5*SG + MR, H = MT + NF*FG + 8;
+
+  const sx = s => ML + s*SG;
+  const fy = f => MT + f*FG;
+  let o = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">`;
+
+  // String lines
+  for (let s=0; s<6; s++)
+    o += `<line x1="${sx(s)}" y1="${fy(0)}" x2="${sx(s)}" y2="${fy(NF)}" stroke="#4a4a5a" stroke-width="1.5"/>`;
+
+  // Fret/nut lines
+  for (let n=0; n<=NF; n++) {
+    const isNut = n===0 && base===1;
+    o += `<line x1="${sx(0)}" y1="${fy(n)}" x2="${sx(5)}" y2="${fy(n)}" stroke="${isNut?'#c0bdb0':'#38384a'}" stroke-width="${isNut?4:1}"/>`;
+  }
+
+  // Fret number label when not at nut
+  if (base > 1)
+    o += `<text x="${W-MR+4}" y="${fy(0.5)}" font-size="11" fill="#aaa" dominant-baseline="middle">${base}fr</text>`;
+
+  // Open/muted indicators above nut
+  for (let s=0; s<6; s++) {
+    const x=sx(s), y=MT-11, v=frets[s];
+    if (v===-1) o += `<text x="${x}" y="${y}" font-size="12" fill="#555" text-anchor="middle" dominant-baseline="middle">✕</text>`;
+    else if (v===0) o += `<circle cx="${x}" cy="${y}" r="4.5" fill="none" stroke="#888" stroke-width="1.5"/>`;
+  }
+
+  // Group fretted strings by relative fret position
+  const groups = {};
+  for (let s=0; s<6; s++) {
+    if (frets[s] > 0) {
+      const rel = frets[s] - base + 1;
+      if (rel >= 1 && rel <= NF) (groups[rel] = groups[rel]||[]).push(s);
+    }
+  }
+
+  // Draw barre (pill) for 2+ strings at same fret, single dot otherwise
+  for (const [rel, strings] of Object.entries(groups)) {
+    const y = fy(Number(rel) - 0.5);
+    const pr = FG * 0.37;
+    if (strings.length >= 2) {
+      const x1=sx(Math.min(...strings)), x2=sx(Math.max(...strings));
+      o += `<rect x="${x1-pr}" y="${y-pr}" width="${x2-x1+2*pr}" height="${2*pr}" rx="${pr}" fill="#e8e0d0"/>`;
+    } else {
+      o += `<circle cx="${sx(strings[0])}" cy="${y}" r="${pr}" fill="#e8e0d0"/>`;
+    }
+  }
+
+  o += '</svg>';
+  return o;
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function showChordModal(display, quality) {
+  const name = chordName(display, quality);
+  const key  = quality === 'min' ? display + 'm' : display;
+  const data = CHORD_DATA[key];
+
+  document.getElementById('modal-name').textContent = name;
+  document.getElementById('modal-diagram').innerHTML = chordDiagramSVG(key);
+  document.getElementById('modal-desc').textContent  =
+    data ? (data.b > 1 ? `Barre · fret ${data.b}` : 'Open chord') : '';
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
 }
 
 // ── Progressions (degree indices into the 7-chord diatonic scale) ─────────────
@@ -386,6 +565,7 @@ function generate() {
     box.innerHTML =
       '<div class="chord-num">' + c.numeral + '</div>' +
       '<div class="chord-name">' + chordName(c.display, c.quality) + '</div>';
+    box.addEventListener('click', () => showChordModal(c.display, c.quality));
     chordsEl.appendChild(box);
   });
 
