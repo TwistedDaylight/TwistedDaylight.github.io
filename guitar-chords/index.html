@@ -166,6 +166,35 @@
     }
     .btn:active { background: var(--accent-dark); }
 
+    /* ── Difficulty selector ── */
+    .diff-row {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 3px;
+      flex-shrink: 0;
+    }
+
+    .diff-btn {
+      flex: 1;
+      padding: 7px 4px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.15s;
+    }
+
+    .diff-btn.active {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
     /* ── Placeholder shown before first generate ── */
     .placeholder {
       flex: 1;
@@ -181,6 +210,12 @@
 <body>
 
 <h1>GUITAR CHORDS</h1>
+
+<div class="diff-row">
+  <button class="diff-btn active" id="diff-1" onclick="setDiff(1)">All Keys</button>
+  <button class="diff-btn"        id="diff-2" onclick="setDiff(2)">No ♯♭</button>
+  <button class="diff-btn"        id="diff-3" onclick="setDiff(3)">Open Chords</button>
+</div>
 
 <div class="key-row" id="key-row"></div>
 
@@ -276,6 +311,8 @@ const MAJ_PROGS = [
   [1, 4, 0, 3],  // ii – V  – I  – IV   (jazz-flavoured)
   [0, 3, 4, 5],  // I  – IV – V  – vi
   [0, 5, 3, 0],  // I  – vi – IV – I
+  [0, 5, 1, 4],  // I  – vi – ii – V    (jazz turnaround; C: C-Am-Dm-G)
+  [0, 1, 4, 5],  // I  – ii – V  – vi   (C: C-Dm-G-Am)
 ];
 
 const MIN_PROGS = [
@@ -290,14 +327,50 @@ const MIN_PROGS = [
 
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+// ── Difficulty filtering ──────────────────────────────────────────────────────
+// 1 = All Keys   2 = Natural notes only   3 = Open chords only
+
+const NATURAL_NOTES = new Set([0, 2, 4, 5, 7, 9, 11]); // C D E F G A B
+const OPEN_MAJOR    = new Set([0, 2, 4, 7, 9]);          // C D E G A (open major shapes)
+const OPEN_MINOR    = new Set([2, 4, 9]);                 // Dm Em Am  (open minor shapes)
+
+function chordOk(noteIdx, quality, diff) {
+  if (diff === 1) return true;
+  if (diff === 2) return NATURAL_NOTES.has(noteIdx);
+  // diff 3: open chord shapes only; dim chords excluded
+  if (quality === 'maj') return OPEN_MAJOR.has(noteIdx);
+  if (quality === 'min') return OPEN_MINOR.has(noteIdx);
+  return false;
+}
+
+let difficulty = 1;
+
+function setDiff(d) {
+  difficulty = d;
+  [1, 2, 3].forEach(i =>
+    document.getElementById('diff-' + i).classList.toggle('active', i === d)
+  );
+}
+
 // ── Main generator ────────────────────────────────────────────────────────────
 
 function generate() {
-  const rootIdx = Math.floor(Math.random() * 12);
-  const mode    = Math.random() < 0.55 ? 'major' : 'minor';
-  const progs   = mode === 'major' ? MAJ_PROGS : MIN_PROGS;
-  const prog    = pick(progs);
-  const key     = buildKey(rootIdx, mode);
+  // Collect all (rootIdx, mode, filteredProgs) combos valid for current difficulty
+  const options = [];
+  for (let r = 0; r < 12; r++) {
+    for (const mode of ['major', 'minor']) {
+      const key = buildKey(r, mode);
+      const pool = (mode === 'major' ? MAJ_PROGS : MIN_PROGS).filter(prog =>
+        prog.every(deg => chordOk(key[deg].noteIdx, key[deg].quality, difficulty))
+      );
+      if (pool.length) options.push({ rootIdx: r, mode, pool, key });
+    }
+  }
+
+  const opt  = pick(options);
+  const prog = pick(opt.pool);
+  const key  = opt.key;
+  const { rootIdx, mode } = opt;
 
   // Render key label
   const keyName = DISPLAY[rootIdx] + (mode === 'major' ? ' Major' : ' Minor');
