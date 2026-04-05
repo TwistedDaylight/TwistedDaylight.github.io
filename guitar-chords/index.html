@@ -238,10 +238,12 @@
     }
 
     .modal-desc {
-      font-size: 0.7rem;
-      color: var(--muted);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
       margin-bottom: 14px;
       min-height: 1em;
+      letter-spacing: 0.01em;
     }
 
     .modal-close {
@@ -480,7 +482,7 @@ function chordDiagramSVG(frets, base) {
 
   // Fret number label when not at nut
   if (base > 1)
-    o += `<text x="${W-MR+4}" y="${fy(0.5)}" font-size="11" fill="#aaa" dominant-baseline="middle">${base}fr</text>`;
+    o += `<text x="${W-MR+4}" y="${fy(0.5)}" font-size="13" font-weight="600" fill="#c0bdb0" dominant-baseline="middle">${base}fr</text>`;
 
   // Open/muted indicators above nut
   for (let s=0; s<6; s++) {
