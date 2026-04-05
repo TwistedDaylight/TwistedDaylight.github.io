@@ -255,6 +255,25 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .modal-alt-btn {
+      padding: 8px 14px;
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent-dark);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .modal-alt-btn:active { background: #2a1800; }
+
     /* ── Placeholder shown before first generate ── */
     .placeholder {
       flex: 1;
@@ -295,7 +314,10 @@
     <div id="modal-name" class="modal-chord-name"></div>
     <div id="modal-diagram" class="modal-diagram"></div>
     <div id="modal-desc" class="modal-desc"></div>
-    <button class="modal-close" onclick="closeModal()">Close</button>
+    <div class="modal-actions">
+      <button id="modal-alt-btn" class="modal-alt-btn" onclick="nextVariant()">Alt Voicing →</button>
+      <button class="modal-close" onclick="closeModal()">Close</button>
+    </div>
   </div>
 </div>
 
@@ -368,43 +390,65 @@ function pentInfo(rootIdx, mode) {
 }
 
 // ── Chord diagram data ────────────────────────────────────────────────────────
-// frets: [lowE, A, D, G, B, highE]  -1=mute  0=open  N=absolute fret
-// base: lowest fret shown in diagram (1 = nut visible)
+// Each chord is an array of voicing variants: { f:[lowE,A,D,G,B,highE], b:baseFret, t:label }
+// Fret values: -1=mute  0=open  N=absolute fret number
 const CHORD_DATA = {
-  // ── Major ──────────────────────────────────────────
-  'C':   { f:[-1,3,2,0,1,0],   b:1 },
-  'C#':  { f:[-1,4,6,6,6,4],   b:4 },
-  'D':   { f:[-1,-1,0,2,3,2],  b:1 },
-  'Eb':  { f:[-1,-1,1,3,4,3],  b:1 },
-  'E':   { f:[0,2,2,1,0,0],    b:1 },
-  'F':   { f:[1,1,2,3,3,1],    b:1 },
-  'F#':  { f:[2,4,4,3,2,2],    b:2 },
-  'G':   { f:[3,2,0,0,0,3],    b:1 },
-  'Ab':  { f:[4,6,6,5,4,4],    b:4 },
-  'A':   { f:[-1,0,2,2,2,0],   b:1 },
-  'Bb':  { f:[-1,1,3,3,3,1],   b:1 },
-  'B':   { f:[-1,2,4,4,4,2],   b:2 },
-  // ── Minor ──────────────────────────────────────────
-  'Cm':  { f:[-1,3,5,5,4,3],   b:3 },
-  'C#m': { f:[-1,4,6,6,5,4],   b:4 },
-  'Dm':  { f:[-1,-1,0,2,3,1],  b:1 },
-  'Ebm': { f:[-1,-1,1,3,4,2],  b:1 },
-  'Em':  { f:[0,2,2,0,0,0],    b:1 },
-  'Fm':  { f:[1,3,3,1,1,1],    b:1 },
-  'F#m': { f:[2,4,4,2,2,2],    b:2 },
-  'Gm':  { f:[3,5,5,3,3,3],    b:3 },
-  'Abm': { f:[4,6,6,4,4,4],    b:4 },
-  'Am':  { f:[-1,0,2,2,1,0],   b:1 },
-  'Bbm': { f:[-1,1,3,3,2,1],   b:1 },
-  'Bm':  { f:[-1,2,4,4,3,2],   b:2 },
+  // ── Major ──────────────────────────────────────────────────────────────────
+  'C':  [ { f:[-1,3,2,0,1,0],    b:1, t:'Open'              },
+          { f:[-1,3,5,5,5,3],    b:3, t:'Barre · Fret 3'    } ],
+  'C#': [ { f:[-1,4,6,6,6,4],    b:4, t:'Barre · Fret 4'    },
+          { f:[9,11,11,10,9,9],  b:9, t:'Barre · Fret 9'    } ],
+  'D':  [ { f:[-1,-1,0,2,3,2],   b:1, t:'Open'              },
+          { f:[-1,5,7,7,7,5],    b:5, t:'Barre · Fret 5'    } ],
+  'Eb': [ { f:[-1,-1,1,3,4,3],   b:1, t:'Open voicing'      },
+          { f:[-1,6,8,8,8,6],    b:6, t:'Barre · Fret 6'    } ],
+  'E':  [ { f:[0,2,2,1,0,0],     b:1, t:'Open'              },
+          { f:[-1,7,9,9,9,7],    b:7, t:'Barre · Fret 7'    } ],
+  'F':  [ { f:[1,3,3,2,1,1],     b:1, t:'Barre · Fret 1'    },   // 133211
+          { f:[-1,-1,3,2,1,1],   b:1, t:'Simplified (top 4)' } ],
+  'F#': [ { f:[2,4,4,3,2,2],     b:2, t:'Barre · Fret 2'    },
+          { f:[-1,9,11,11,11,9], b:9, t:'Barre · Fret 9'    } ],
+  'G':  [ { f:[3,2,0,0,0,3],     b:1, t:'Open'              },
+          { f:[3,2,0,0,3,3],     b:1, t:'Open (full voicing)' } ],
+  'Ab': [ { f:[4,6,6,5,4,4],     b:4, t:'Barre · Fret 4'    },
+          { f:[-1,-1,6,5,4,4],   b:4, t:'Barre · Fret 4 (top 4)' } ],
+  'A':  [ { f:[-1,0,2,2,2,0],    b:1, t:'Open'              },
+          { f:[5,7,7,6,5,5],     b:5, t:'Barre · Fret 5'    } ],
+  'Bb': [ { f:[-1,1,3,3,3,1],    b:1, t:'Barre · Fret 1'    },
+          { f:[6,8,8,7,6,6],     b:6, t:'Barre · Fret 6'    } ],
+  'B':  [ { f:[-1,2,4,4,4,2],    b:2, t:'Barre · Fret 2'    },
+          { f:[7,9,9,8,7,7],     b:7, t:'Barre · Fret 7'    } ],
+  // ── Minor ──────────────────────────────────────────────────────────────────
+  'Cm':  [ { f:[-1,3,5,5,4,3],   b:3, t:'Barre · Fret 3'    },
+           { f:[8,10,10,8,8,8],  b:8, t:'Barre · Fret 8'    } ],
+  'C#m': [ { f:[-1,4,6,6,5,4],   b:4, t:'Barre · Fret 4'    },
+           { f:[9,11,11,9,9,9],  b:9, t:'Barre · Fret 9'    } ],
+  'Dm':  [ { f:[-1,-1,0,2,3,1],  b:1, t:'Open'              },
+           { f:[-1,5,7,7,6,5],   b:5, t:'Barre · Fret 5'    } ],
+  'Ebm': [ { f:[-1,-1,1,3,4,2],  b:1, t:'Open voicing'      },
+           { f:[-1,6,8,8,7,6],   b:6, t:'Barre · Fret 6'    } ],
+  'Em':  [ { f:[0,2,2,0,0,0],    b:1, t:'Open'              },
+           { f:[-1,7,9,9,8,7],   b:7, t:'Barre · Fret 7'    } ],
+  'Fm':  [ { f:[1,3,3,1,1,1],    b:1, t:'Barre · Fret 1'    },
+           { f:[-1,8,10,10,9,8], b:8, t:'Barre · Fret 8'    } ],
+  'F#m': [ { f:[2,4,4,2,2,2],    b:2, t:'Barre · Fret 2'    },
+           { f:[-1,9,11,11,10,9],b:9, t:'Barre · Fret 9'    } ],
+  'Gm':  [ { f:[3,5,5,3,3,3],    b:3, t:'Barre · Fret 3'    },
+           { f:[-1,10,12,12,11,10],b:10,t:'Barre · Fret 10'  } ],
+  'Abm': [ { f:[4,6,6,4,4,4],    b:4, t:'Barre · Fret 4'    },
+           { f:[-1,-1,6,4,4,4],  b:4, t:'Barre · Fret 4 (top 4)' } ],
+  'Am':  [ { f:[-1,0,2,2,1,0],   b:1, t:'Open'              },
+           { f:[5,7,7,5,5,5],    b:5, t:'Barre · Fret 5'    } ],
+  'Bbm': [ { f:[-1,1,3,3,2,1],   b:1, t:'Barre · Fret 1'    },
+           { f:[6,8,8,6,6,6],    b:6, t:'Barre · Fret 6'    } ],
+  'Bm':  [ { f:[-1,2,4,4,3,2],   b:2, t:'Barre · Fret 2'    },
+           { f:[7,9,9,7,7,7],    b:7, t:'Barre · Fret 7'    } ],
 };
 
 // ── SVG chord diagram renderer ────────────────────────────────────────────────
-function chordDiagramSVG(dataKey) {
-  const data = CHORD_DATA[dataKey];
-  if (!data) return '<p style="color:#666;font-size:.8rem;padding:8px">No diagram</p>';
+function chordDiagramSVG(frets, base) {
+  if (!frets) return '<p style="color:#666;font-size:.8rem;padding:8px">No diagram</p>';
 
-  const frets = data.f, base = data.b;
   const SG=19, FG=21, ML=13, MT=22, NF=4;
   const MR = base > 1 ? 26 : 8;
   const W = ML + 5*SG + MR, H = MT + NF*FG + 8;
@@ -460,15 +504,32 @@ function chordDiagramSVG(dataKey) {
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
-function showChordModal(display, quality) {
-  const name = chordName(display, quality);
-  const key  = quality === 'min' ? display + 'm' : display;
-  const data = CHORD_DATA[key];
+let modalChord = null, modalVariant = 0;
 
-  document.getElementById('modal-name').textContent = name;
-  document.getElementById('modal-diagram').innerHTML = chordDiagramSVG(key);
-  document.getElementById('modal-desc').textContent  =
-    data ? (data.b > 1 ? `Barre · fret ${data.b}` : 'Open chord') : '';
+function renderModalDiagram() {
+  const variants = CHORD_DATA[modalChord];
+  const v = variants ? variants[modalVariant] : null;
+  document.getElementById('modal-diagram').innerHTML =
+    v ? chordDiagramSVG(v.f, v.b) : '<p style="color:#666;font-size:.8rem;padding:8px">No diagram</p>';
+  const total = variants ? variants.length : 0;
+  document.getElementById('modal-desc').textContent =
+    v ? (total > 1 ? `${v.t}  ·  ${modalVariant + 1} / ${total}` : v.t) : '';
+  document.getElementById('modal-alt-btn').style.display =
+    total > 1 ? 'inline-block' : 'none';
+}
+
+function nextVariant() {
+  const variants = CHORD_DATA[modalChord];
+  if (!variants || variants.length <= 1) return;
+  modalVariant = (modalVariant + 1) % variants.length;
+  renderModalDiagram();
+}
+
+function showChordModal(display, quality) {
+  modalChord   = quality === 'min' ? display + 'm' : display;
+  modalVariant = 0;
+  document.getElementById('modal-name').textContent = chordName(display, quality);
+  renderModalDiagram();
   document.getElementById('modal').style.display = 'flex';
 }
 
