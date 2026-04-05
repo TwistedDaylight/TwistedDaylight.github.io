@@ -463,7 +463,7 @@ function chordDiagramSVG(frets, base) {
   if (!frets) return '<p style="color:#666;font-size:.8rem;padding:8px">No diagram</p>';
 
   const SG=19, FG=21, ML=13, MT=22, NF=4;
-  const MR = base > 1 ? 26 : 8;
+  const MR = base > 1 ? 34 : 8;
   const W = ML + 5*SG + MR, H = MT + NF*FG + 8;
 
   const sx = s => ML + s*SG;
@@ -482,7 +482,7 @@ function chordDiagramSVG(frets, base) {
 
   // Fret number label when not at nut
   if (base > 1)
-    o += `<text x="${W-MR+4}" y="${fy(0.5)}" font-size="13" font-weight="600" fill="#c0bdb0" dominant-baseline="middle">${base}fr</text>`;
+    o += `<text x="${W-MR+12}" y="${fy(0.5)}" font-size="13" font-weight="600" fill="#c0bdb0" dominant-baseline="middle">${base}fr</text>`;
 
   // Open/muted indicators above nut
   for (let s=0; s<6; s++) {
