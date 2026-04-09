@@ -329,6 +329,32 @@
     }
     .save-now-btn:hover { transform: scale(1.07); }
 
+    /* ── PREPARING ───────────────────────────── */
+    #screen-preparing { background: linear-gradient(160deg, #FF6B35 0%, #FF4757 100%); justify-content: center; text-align: center; }
+    .prep-card {
+      background: white; border-radius: 30px; padding: 30px 28px;
+      max-width: 420px; width: 100%; box-shadow: 0 16px 50px rgba(0,0,0,.2);
+    }
+    .prep-chef { font-size: 80px; display: block; animation: wobble 1.4s ease-in-out infinite; margin-bottom: 6px; }
+    .prep-card h2 { font-family: 'Fredoka One', sans-serif; font-size: 2rem; color: var(--orange); }
+    .prep-card > p { font-size: 1rem; color: #555; margin: 6px 0 10px; font-weight: 700; }
+    .prep-food-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 10px 0 14px; }
+    .prep-food-row span { font-size: 38px; animation: bounce 1.2s ease-in-out infinite; }
+    .prep-food-row span:nth-child(2n) { animation-delay: .2s; }
+    .prep-food-row span:nth-child(3n) { animation-delay: .4s; }
+    .prep-food-row span:nth-child(4n) { animation-delay: .6s; }
+    .prep-timer-ring {
+      width: 140px; height: 140px; margin: 4px auto 10px;
+      position: relative; display: flex; align-items: center; justify-content: center;
+    }
+    .prep-timer-svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+    .prep-timer-circle-bg { fill: none; stroke: #eee; stroke-width: 10; }
+    .prep-timer-circle-fill { fill: none; stroke: var(--orange); stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset .8s linear; }
+    .prep-timer-inner { display: flex; flex-direction: column; align-items: center; }
+    .prep-timer-num { font-family: 'Fredoka One', sans-serif; font-size: 2.2rem; color: var(--dark); line-height: 1; }
+    .prep-timer-lbl { font-size: .72rem; font-weight: 900; color: #aaa; text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
+    .prep-message { font-family: 'Fredoka One', sans-serif; font-size: 1rem; color: #888; min-height: 28px; }
+
     /* confetti */
     .confetti-piece {
       position: fixed; border-radius: 3px;
@@ -371,6 +397,7 @@
 
     /* coin shake */
     @keyframes coinShake { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-15deg)} 75%{transform:rotate(15deg)} }
+    @keyframes wobble { 0%,100%{transform:rotate(0) scale(1)} 25%{transform:rotate(-8deg) scale(1.05)} 75%{transform:rotate(8deg) scale(1.05)} }
     .coin-shake { animation: coinShake .3s ease; }
   </style>
 </head>
@@ -505,7 +532,28 @@
   </div>
 </div>
 
-<!-- ══ SCREEN 5 – SUCCESS ════════════════════════ -->
+<!-- ══ SCREEN 5 – PREPARING ══════════════════════ -->
+<div id="screen-preparing" class="screen">
+  <div class="prep-card fade-in-up">
+    <span class="prep-chef">👨‍🍳</span>
+    <h2>Cooking Your Food!</h2>
+    <p>Your order is being prepared...</p>
+    <div class="prep-food-row" id="prep-food-row"></div>
+    <div class="prep-timer-ring">
+      <svg class="prep-timer-svg" width="140" height="140" viewBox="0 0 140 140">
+        <circle class="prep-timer-circle-bg" cx="70" cy="70" r="60"/>
+        <circle class="prep-timer-circle-fill" id="prep-timer-circle" cx="70" cy="70" r="60"/>
+      </svg>
+      <div class="prep-timer-inner">
+        <div class="prep-timer-num" id="prep-timer-num">1:00</div>
+        <div class="prep-timer-lbl" id="prep-timer-lbl">preparing</div>
+      </div>
+    </div>
+    <div class="prep-message" id="prep-message">Sizzling away! 🔥</div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 6 – SUCCESS ════════════════════════ -->
 <div id="screen-success" class="screen">
   <div class="success-card fade-in-up">
     <span class="big-check">🎉</span>
@@ -551,8 +599,19 @@
         <button class="bsc-btn" onclick="changeBudgetSetting(+1)">+</button>
       </div>
     </div>
-    <div style="margin-top:8px;font-size:.78rem;color:rgba(255,255,255,.4);font-weight:700">
+    <div style="margin-top:4px;font-size:.78rem;color:rgba(255,255,255,.4);font-weight:700">
       Adjusts in €1 steps · Range €5 – €50
+    </div>
+    <div class="bsc-row" style="margin-top:14px">
+      <label>🍳 Prep timer</label>
+      <div class="bsc-controls">
+        <button class="bsc-btn" onclick="changePrepTimer(-30)">−</button>
+        <span class="bsc-val" id="bsc-timer-val">1m</span>
+        <button class="bsc-btn" onclick="changePrepTimer(+30)">+</button>
+      </div>
+    </div>
+    <div style="margin-top:4px;font-size:.78rem;color:rgba(255,255,255,.4);font-weight:700">
+      Adjusts in 30s steps · Range 30s – 5min
     </div>
   </div>
 
@@ -602,8 +661,8 @@ function loadMenu() {
   return JSON.parse(JSON.stringify(defaultMenu));
 }
 function loadSettings() {
-  try { const s = localStorage.getItem('yt_settings'); if (s) return JSON.parse(s); } catch(e) {}
-  return { budgetPerPerson: 15 };
+  try { const s = localStorage.getItem('yt_settings'); if (s) return { budgetPerPerson: 15, prepTimerSeconds: 60, ...JSON.parse(s) }; } catch(e) {}
+  return { budgetPerPerson: 15, prepTimerSeconds: 60 };
 }
 function persist() {
   try {
@@ -623,6 +682,7 @@ let cart            = {};
 let selectedMethod  = null;
 let coinsPaid       = 0;
 let editDirty       = false;
+let prepTimerInterval = null;
 
 // ── PEOPLE / WELCOME ──────────────────────────────
 const PERSON_EMOJIS = ['🧒','👧','🧑','👦','👩','🧔','👨','👴'];
@@ -874,12 +934,56 @@ function completeOrder() {
   const spent = getTotal();
   remainingBudget = Math.round((remainingBudget - spent) * 100) / 100;
   updateBudgetBar();
+  showScreen('preparing');
+}
 
-  // build food preview
+// ── PREP TIMER ────────────────────────────────────
+const prepMessages = [
+  'Sizzling away! 🔥', 'Adding the secret sauce! 🫙',
+  'Almost there... 🧂', 'Smells SO good! 😋',
+  'Chopping and cooking! 🔪', 'Nearly ready! ⏰'
+];
+const TIMER_CIRC = 377; // 2π × 60
+
+function setupPrepScreen() {
+  document.getElementById('prep-food-row').innerHTML =
+    Object.values(cart).map(e => `<span>${e.item.emoji}</span>`).join('');
+
+  let remaining = settings.prepTimerSeconds;
+  const total = remaining;
+  const circle = document.getElementById('prep-timer-circle');
+  circle.style.strokeDasharray = TIMER_CIRC;
+
+  function updateDisplay() {
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    document.getElementById('prep-timer-num').textContent =
+      remaining >= 60 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${remaining}s`;
+    circle.style.strokeDashoffset = TIMER_CIRC * (1 - remaining / total);
+    const msgIdx = Math.min(
+      prepMessages.length - 1,
+      Math.floor((1 - remaining / total) * prepMessages.length)
+    );
+    document.getElementById('prep-message').textContent = prepMessages[msgIdx];
+  }
+
+  updateDisplay();
+  if (prepTimerInterval) clearInterval(prepTimerInterval);
+  prepTimerInterval = setInterval(() => {
+    remaining--;
+    updateDisplay();
+    if (remaining <= 0) {
+      clearInterval(prepTimerInterval);
+      prepTimerInterval = null;
+      showSuccess();
+    }
+  }, 1000);
+}
+
+function showSuccess() {
   document.getElementById('success-food').innerHTML =
     Object.values(cart).map(e => `<span>${e.item.emoji}</span>`).join('');
 
-  // budget chip
   const chip   = document.getElementById('budget-chip');
   const icon   = document.getElementById('budget-chip-icon');
   const label  = document.getElementById('budget-chip-label');
@@ -898,7 +1002,8 @@ function completeOrder() {
   }
 
   launchConfetti();
-  showScreen('success');
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-success').classList.add('active');
 }
 
 function nextOrder() {
@@ -919,12 +1024,14 @@ function rechargeAndReturn() {
 
 // ── SCREEN ROUTER ─────────────────────────────────
 function showScreen(name) {
+  if (prepTimerInterval) { clearInterval(prepTimerInterval); prepTimerInterval = null; }
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
-  if (name === 'cart')    renderCart();
-  if (name === 'payment') setupPayment();
-  if (name === 'edit')    buildEditScreen();
-  if (name === 'welcome') updateWelcomeBudget();
+  if (name === 'cart')      renderCart();
+  if (name === 'payment')   setupPayment();
+  if (name === 'preparing') setupPrepScreen();
+  if (name === 'edit')      buildEditScreen();
+  if (name === 'welcome')   updateWelcomeBudget();
 }
 
 // ── EDIT SCREEN ───────────────────────────────────
@@ -937,6 +1044,7 @@ function buildEditScreen() {
   editDirty = false;
   document.getElementById('save-banner').classList.remove('visible');
   document.getElementById('bsc-val').textContent = `€${settings.budgetPerPerson.toFixed(2)}`;
+  updatePrepTimerDisplay();
 
   const container = document.getElementById('edit-sections');
   container.innerHTML = '';
@@ -981,6 +1089,19 @@ function changeBudgetSetting(delta) {
   settings.budgetPerPerson = Math.min(50, Math.max(5, settings.budgetPerPerson + delta));
   document.getElementById('bsc-val').textContent = `€${settings.budgetPerPerson.toFixed(2)}`;
   markDirty();
+}
+
+function changePrepTimer(delta) {
+  settings.prepTimerSeconds = Math.min(300, Math.max(30, settings.prepTimerSeconds + delta));
+  updatePrepTimerDisplay();
+  markDirty();
+}
+
+function updatePrepTimerDisplay() {
+  const s = settings.prepTimerSeconds;
+  const mins = Math.floor(s / 60), secs = s % 60;
+  document.getElementById('bsc-timer-val').textContent =
+    secs === 0 ? `${mins}m` : (mins > 0 ? `${mins}m ${secs}s` : `${secs}s`);
 }
 
 function markDirty() {
