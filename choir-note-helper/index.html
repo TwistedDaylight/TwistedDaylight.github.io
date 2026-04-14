@@ -56,7 +56,7 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useRef, useCallback } = React;
+const { useState, useRef, useCallback, useEffect } = React;
 
 const CLEFS = {
   treble: {
@@ -82,6 +82,23 @@ const NOTE_MIDI = {
   C5:72,D5:74,E5:76,F5:77,G5:79,A5:81,
 };
 
+const GUITAR_STRINGS = [
+  { name: "e", open: 64 },
+  { name: "B", open: 59 },
+  { name: "G", open: 55 },
+  { name: "D", open: 50 },
+  { name: "A", open: 45 },
+  { name: "E", open: 40 },
+];
+const FB_LW=16, FB_OW=14, FB_NW=4, FB_FW=24;
+
+function getGuitarPositions(midi) {
+  if (!midi) return [];
+  return GUITAR_STRINGS
+    .map((str, i) => ({ si: i, fret: midi - str.open }))
+    .filter(({ fret }) => fret >= 0 && fret <= 12);
+}
+
 const NO_SHARP = new Set(["E","B"]);
 const NO_FLAT  = new Set(["C","F"]);
 const SHARP_NAMES = { C:"C♯",D:"D♯",F:"F♯",G:"G♯",A:"A♯" };
@@ -97,6 +114,7 @@ function App() {
   const [accidental, setAccidental] = useState("natural");
   const [playing, setPlaying] = useState(false);
   const audioCtxRef = useRef(null);
+  const activeNodesRef = useRef([]);
 
   const staffTop = 60, slotHeight = 14, staffWidth = 300, svgWidth = 380, svgHeight = 220, staffLeft = 46;
 
@@ -105,6 +123,12 @@ function App() {
   const canSharp = noteLetter && !NO_SHARP.has(noteLetter);
   const canFlat  = noteLetter && !NO_FLAT.has(noteLetter);
   const effectiveAcc = (accidental==="sharp"&&!canSharp)||(accidental==="flat"&&!canFlat) ? "natural" : accidental;
+
+  const effectiveMidi = selectedNote && NOTE_MIDI[selectedNote]
+    ? NOTE_MIDI[selectedNote] + (effectiveAcc==="sharp"?1:effectiveAcc==="flat"?-1:0)
+    : null;
+  const guitarPositions = getGuitarPositions(effectiveMidi);
+  const aboveFretRange = !!selectedNote && guitarPositions.length === 0;
 
   const getFreq = (note, acc) => {
     const midi = NOTE_MIDI[note]; if (!midi) return null;
@@ -120,30 +144,41 @@ function App() {
         audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
       const ctx = audioCtxRef.current;
       const doPlay = () => {
-        const gain = ctx.createGain();
-        gain.connect(ctx.destination);
-        gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(isLow?0.45:0.38, ctx.currentTime+0.06);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+2.2);
-        const osc1 = ctx.createOscillator();
-        osc1.connect(gain);
-        osc1.type = isLow ? "sawtooth" : "sine";
-        osc1.frequency.setValueAtTime(freq, ctx.currentTime);
-        osc1.start(ctx.currentTime); osc1.stop(ctx.currentTime+2.2);
-        if (isLow) {
-          const osc2 = ctx.createOscillator(), g2 = ctx.createGain();
-          osc2.connect(g2); g2.connect(ctx.destination);
-          osc2.type = "sine";
-          osc2.frequency.setValueAtTime(freq*2, ctx.currentTime);
-          g2.gain.setValueAtTime(0, ctx.currentTime);
-          g2.gain.linearRampToValueAtTime(0.3, ctx.currentTime+0.06);
-          g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+2.2);
-          osc2.start(ctx.currentTime); osc2.stop(ctx.currentTime+2.2);
-        }
+        const now = ctx.currentTime;
+
+        // Fade out any currently playing nodes to avoid click/pop on overlap
+        activeNodesRef.current.forEach(({gainNode, osc}) => {
+          try {
+            gainNode.gain.cancelScheduledValues(now);
+            gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+            gainNode.gain.linearRampToValueAtTime(0, now + 0.04);
+            osc.stop(now + 0.05);
+          } catch(e) {}
+        });
+        activeNodesRef.current = [];
+
+        const createVoice = (type, voiceFreq, peak) => {
+          const gainNode = ctx.createGain();
+          gainNode.connect(ctx.destination);
+          gainNode.gain.setValueAtTime(0, now);
+          gainNode.gain.linearRampToValueAtTime(peak, now + 0.06);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, now + 2.2);
+          const osc = ctx.createOscillator();
+          osc.connect(gainNode);
+          osc.type = type;
+          osc.frequency.setValueAtTime(voiceFreq, now);
+          osc.start(now);
+          osc.stop(now + 2.2);
+          activeNodesRef.current.push({gainNode, osc});
+        };
+
+        createVoice(isLow ? "sawtooth" : "sine", freq, isLow ? 0.45 : 0.38);
+        if (isLow) createVoice("sine", freq * 2, 0.3);
+
         setPlaying(true);
-        setTimeout(()=>setPlaying(false), 2200);
+        setTimeout(() => setPlaying(false), 2200);
       };
-      ctx.state==="suspended" ? ctx.resume().then(doPlay) : doPlay();
+      ctx.state === "suspended" ? ctx.resume().then(doPlay) : doPlay();
     } catch(e) { console.error(e); }
   }, []);
 
@@ -263,14 +298,46 @@ function App() {
       </div>
 
       <div style={S.refWrap}>
-        <div style={{fontSize:11,color:"#a08060",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:8,textAlign:"center"}}>Quick Reference — {currentClef.label}</div>
-        <div style={{display:"flex",gap:6}}>
-          {[{label:"Lines ↑",notes:currentClef.lines},{label:"Spaces ↑",notes:currentClef.spaces}].map(({label,notes})=>(
-            <div key={label} style={S.refCard}>
-              <div style={{fontSize:11,color:"#a07850",marginBottom:6,fontWeight:600}}>{label}</div>
-              {notes.map(n=><span key={n} style={S.chip(selectedNote===n)} onClick={()=>handleNoteClick(n)}>{n}</span>)}
-            </div>
-          ))}
+        <div style={{fontSize:11,color:"#a08060",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:8,textAlign:"center"}}>
+          Guitar Position{selectedNote ? ` \u2014 ${displayName()}` : ""}
+        </div>
+        <div style={S.refCard}>
+          <svg viewBox="0 0 340 108" width="340" style={{display:"block",maxWidth:"100%"}}>
+            {[3,5,7,9].map(f=>(
+              <circle key={f} cx={FB_LW+FB_OW+FB_NW+(f-0.5)*FB_FW} cy={55} r={3} fill="#d4c4a8"/>
+            ))}
+            <circle cx={FB_LW+FB_OW+FB_NW+11.5*FB_FW} cy={38} r={3} fill="#d4c4a8"/>
+            <circle cx={FB_LW+FB_OW+FB_NW+11.5*FB_FW} cy={71} r={3} fill="#d4c4a8"/>
+            {[3,5,7,9,12].map(f=>(
+              <text key={f} x={FB_LW+FB_OW+FB_NW+(f-0.5)*FB_FW} y={14} textAnchor="middle" fontSize={9} fill="#b0956e">{f}</text>
+            ))}
+            <rect x={FB_LW+FB_OW} y={22} width={FB_NW} height={65} fill="#5a3e28"/>
+            {Array.from({length:12},(_,i)=>(
+              <line key={i} x1={FB_LW+FB_OW+FB_NW+(i+1)*FB_FW} y1={22} x2={FB_LW+FB_OW+FB_NW+(i+1)*FB_FW} y2={87} stroke="#c9b99a" strokeWidth={1}/>
+            ))}
+            {GUITAR_STRINGS.map((str,i)=>{
+              const y=22+i*13;
+              return (
+                <g key={str.name}>
+                  <text x={FB_LW-2} y={y+4} textAnchor="end" fontSize={10} fill="#8b6840" fontFamily="Georgia,serif">{str.name}</text>
+                  <line x1={FB_LW} y1={y} x2={FB_LW+FB_OW+FB_NW+12*FB_FW} y2={y} stroke="#8b7355" strokeWidth={1+i*0.25}/>
+                </g>
+              );
+            })}
+            {guitarPositions.map(({si,fret})=>{
+              const y=22+si*13;
+              const cx=fret===0 ? FB_LW+FB_OW/2 : FB_LW+FB_OW+FB_NW+(fret-0.5)*FB_FW;
+              return fret===0
+                ? <circle key={si} cx={cx} cy={y} r={6} fill="none" stroke="#8b4513" strokeWidth={2}/>
+                : <circle key={si} cx={cx} cy={y} r={6} fill={playing?"#d4622a":"#8b4513"}/>;
+            })}
+            {!selectedNote&&(
+              <text x={170} y={58} textAnchor="middle" fontSize={11} fill="#c4a882" fontFamily="Georgia,serif" fontStyle="italic">select a note to see guitar position</text>
+            )}
+          </svg>
+          {aboveFretRange&&(
+            <div style={{fontSize:11,color:"#a07850",textAlign:"center",marginTop:4,fontStyle:"italic"}}>above 12th fret — not in standard first position</div>
+          )}
         </div>
       </div>
 
