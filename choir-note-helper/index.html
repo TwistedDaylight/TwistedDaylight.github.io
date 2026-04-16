@@ -82,19 +82,25 @@ const NOTE_MIDI = {
   C5:72,D5:74,E5:76,F5:77,G5:79,A5:81,
 };
 
-const GUITAR_STRINGS = [
-  { name: "e", open: 64 },
-  { name: "B", open: 59 },
-  { name: "G", open: 55 },
-  { name: "D", open: 50 },
-  { name: "A", open: 45 },
-  { name: "E", open: 40 },
+const TREBLE_GUITAR = [
+  { name: "e", open: 76 },
+  { name: "B", open: 71 },
+  { name: "G", open: 67 },
+  { name: "D", open: 62 },
+  { name: "A", open: 57 },
+  { name: "E", open: 52 },
+];
+const BASS_GUITAR = [
+  { name: "G", open: 43 },
+  { name: "D", open: 38 },
+  { name: "A", open: 33 },
+  { name: "E", open: 28 },
 ];
 const FB_LW=16, FB_OW=14, FB_NW=4, FB_FW=24;
 
-function getGuitarPositions(midi) {
+function getGuitarPositions(midi, strings) {
   if (!midi) return [];
-  return GUITAR_STRINGS
+  return strings
     .map((str, i) => ({ si: i, fret: midi - str.open }))
     .filter(({ fret }) => fret >= 0 && fret <= 12);
 }
@@ -124,11 +130,19 @@ function App() {
   const canFlat  = noteLetter && !NO_FLAT.has(noteLetter);
   const effectiveAcc = (accidental==="sharp"&&!canSharp)||(accidental==="flat"&&!canFlat) ? "natural" : accidental;
 
+  const guitarStrings = clef === "treble" ? TREBLE_GUITAR : BASS_GUITAR;
   const effectiveMidi = selectedNote && NOTE_MIDI[selectedNote]
     ? NOTE_MIDI[selectedNote] + (effectiveAcc==="sharp"?1:effectiveAcc==="flat"?-1:0)
     : null;
-  const guitarPositions = getGuitarPositions(effectiveMidi);
+  const guitarPositions = getGuitarPositions(effectiveMidi, guitarStrings);
   const aboveFretRange = !!selectedNote && guitarPositions.length === 0;
+  const gNStr = guitarStrings.length;
+  const gLastY = 22 + (gNStr-1)*13;
+  const gNutH = (gNStr-1)*13;
+  const gSvgH = gLastY + 21;
+  const gMidY = Math.round(22 + (gNStr-1)*6.5);
+  const gQ1Y = Math.round(22 + (gNStr-1)*3.25);
+  const gQ3Y = Math.round(22 + (gNStr-1)*9.75);
 
   const getFreq = (note, acc) => {
     const midi = NOTE_MIDI[note]; if (!midi) return null;
@@ -302,20 +316,20 @@ function App() {
           Guitar Position{selectedNote ? ` \u2014 ${displayName()}` : ""}
         </div>
         <div style={S.refCard}>
-          <svg viewBox="0 0 340 108" width="340" style={{display:"block",maxWidth:"100%"}}>
+          <svg viewBox={`0 0 340 ${gSvgH}`} width="340" style={{display:"block",maxWidth:"100%"}}>
             {[3,5,7,9].map(f=>(
-              <circle key={f} cx={FB_LW+FB_OW+FB_NW+(f-0.5)*FB_FW} cy={55} r={3} fill="#d4c4a8"/>
+              <circle key={f} cx={FB_LW+FB_OW+FB_NW+(f-0.5)*FB_FW} cy={gMidY} r={3} fill="#d4c4a8"/>
             ))}
-            <circle cx={FB_LW+FB_OW+FB_NW+11.5*FB_FW} cy={38} r={3} fill="#d4c4a8"/>
-            <circle cx={FB_LW+FB_OW+FB_NW+11.5*FB_FW} cy={71} r={3} fill="#d4c4a8"/>
+            <circle cx={FB_LW+FB_OW+FB_NW+11.5*FB_FW} cy={gQ1Y} r={3} fill="#d4c4a8"/>
+            <circle cx={FB_LW+FB_OW+FB_NW+11.5*FB_FW} cy={gQ3Y} r={3} fill="#d4c4a8"/>
             {[3,5,7,9,12].map(f=>(
               <text key={f} x={FB_LW+FB_OW+FB_NW+(f-0.5)*FB_FW} y={14} textAnchor="middle" fontSize={9} fill="#b0956e">{f}</text>
             ))}
-            <rect x={FB_LW+FB_OW} y={22} width={FB_NW} height={65} fill="#5a3e28"/>
+            <rect x={FB_LW+FB_OW} y={22} width={FB_NW} height={gNutH} fill="#5a3e28"/>
             {Array.from({length:12},(_,i)=>(
-              <line key={i} x1={FB_LW+FB_OW+FB_NW+(i+1)*FB_FW} y1={22} x2={FB_LW+FB_OW+FB_NW+(i+1)*FB_FW} y2={87} stroke="#c9b99a" strokeWidth={1}/>
+              <line key={i} x1={FB_LW+FB_OW+FB_NW+(i+1)*FB_FW} y1={22} x2={FB_LW+FB_OW+FB_NW+(i+1)*FB_FW} y2={gLastY} stroke="#c9b99a" strokeWidth={1}/>
             ))}
-            {GUITAR_STRINGS.map((str,i)=>{
+            {guitarStrings.map((str,i)=>{
               const y=22+i*13;
               return (
                 <g key={str.name}>
@@ -332,7 +346,7 @@ function App() {
                 : <circle key={si} cx={cx} cy={y} r={6} fill={playing?"#d4622a":"#8b4513"}/>;
             })}
             {!selectedNote&&(
-              <text x={170} y={58} textAnchor="middle" fontSize={11} fill="#c4a882" fontFamily="Georgia,serif" fontStyle="italic">select a note to see guitar position</text>
+              <text x={170} y={gMidY+4} textAnchor="middle" fontSize={11} fill="#c4a882" fontFamily="Georgia,serif" fontStyle="italic">select a note to see guitar position</text>
             )}
           </svg>
           {aboveFretRange&&(
