@@ -171,23 +171,43 @@ function App() {
         });
         activeNodesRef.current = [];
 
-        const createVoice = (type, voiceFreq, peak) => {
+        if (isLow) {
+          if (!ctx._bassWave) {
+            const real = new Float32Array(7);
+            const imag = new Float32Array([0, 1.0, 0.6, 0.25, 0.12, 0.05, 0.02]);
+            ctx._bassWave = ctx.createPeriodicWave(real, imag);
+          }
           const gainNode = ctx.createGain();
           gainNode.connect(ctx.destination);
           gainNode.gain.setValueAtTime(0, now);
-          gainNode.gain.linearRampToValueAtTime(peak, now + 0.06);
+          gainNode.gain.linearRampToValueAtTime(0.40, now + 0.06);
           gainNode.gain.exponentialRampToValueAtTime(0.001, now + 2.2);
+          const filter = ctx.createBiquadFilter();
+          filter.type = "lowpass";
+          filter.frequency.value = 1200;
+          filter.Q.value = 0.8;
+          filter.connect(gainNode);
           const osc = ctx.createOscillator();
-          osc.connect(gainNode);
-          osc.type = type;
-          osc.frequency.setValueAtTime(voiceFreq, now);
+          osc.setPeriodicWave(ctx._bassWave);
+          osc.frequency.setValueAtTime(freq, now);
+          osc.connect(filter);
           osc.start(now);
           osc.stop(now + 2.2);
           activeNodesRef.current.push({gainNode, osc});
-        };
-
-        createVoice(isLow ? "sawtooth" : "sine", freq, isLow ? 0.45 : 0.38);
-        if (isLow) createVoice("sine", freq * 2, 0.3);
+        } else {
+          const gainNode = ctx.createGain();
+          gainNode.connect(ctx.destination);
+          gainNode.gain.setValueAtTime(0, now);
+          gainNode.gain.linearRampToValueAtTime(0.38, now + 0.06);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, now + 2.2);
+          const osc = ctx.createOscillator();
+          osc.connect(gainNode);
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(freq, now);
+          osc.start(now);
+          osc.stop(now + 2.2);
+          activeNodesRef.current.push({gainNode, osc});
+        }
 
         setPlaying(true);
         setTimeout(() => setPlaying(false), 2200);
@@ -200,7 +220,7 @@ function App() {
     const letter = note.replace(/\d/,"");
     const validAcc = (acc==="sharp"&&NO_SHARP.has(letter))||(acc==="flat"&&NO_FLAT.has(letter)) ? "natural" : acc;
     const freq = getFreq(note, validAcc);
-    playFreq(freq, (NOTE_MIDI[note]||60) < 52);
+    playFreq(freq, clef === "bass");
   };
 
   const handleNoteClick = (note) => { setSelectedNote(note); triggerPlay(note, accidental); };
