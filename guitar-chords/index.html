@@ -156,6 +156,38 @@
       margin-top: 1px;
     }
 
+    .pent-piano {
+      display: flex;
+      justify-content: center;
+      padding: 2px 0 4px;
+    }
+
+    /* ── Mode toggle ── */
+    .mode-row {
+      display: flex;
+      justify-content: flex-end;
+      flex-shrink: 0;
+    }
+
+    .mode-btn {
+      background: var(--surface);
+      border: 1px solid #3a3a4a;
+      border-radius: 20px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.15s;
+    }
+
+    .mode-btn.active {
+      background: var(--surface2);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
     /* ── Generate button ── */
     .btn {
       padding: 15px;
@@ -298,13 +330,17 @@
   <button class="diff-btn"        id="diff-3" onclick="setDiff(3)">Open Chords</button>
 </div>
 
+<div class="mode-row">
+  <button class="mode-btn" id="mode-btn" onclick="toggleMode()">🎹 Piano</button>
+</div>
+
 <div class="key-row" id="key-row"></div>
 
 <div id="placeholder" class="placeholder">Tap Generate for a chord progression</div>
 <div class="chords" id="chords" style="display:none"></div>
 
 <div class="pent" id="pent" style="display:none">
-  <div class="pent-title">Pentatonic Improv &nbsp;·&nbsp; low E string root</div>
+  <div class="pent-title" id="pent-title">Pentatonic Improv &nbsp;·&nbsp; low E string root</div>
   <div class="pent-items" id="pent-items"></div>
 </div>
 
@@ -325,6 +361,23 @@
 
 <script>
 'use strict';
+
+// ── Mode ──────────────────────────────────────────────────────────────────────
+let pianoMode = false;
+let currentPents = null;
+let modalNoteIdx = 0, modalQuality = 'maj';
+
+function toggleMode() {
+  pianoMode = !pianoMode;
+  const btn = document.getElementById('mode-btn');
+  btn.textContent = pianoMode ? '🎸 Guitar' : '🎹 Piano';
+  btn.classList.toggle('active', pianoMode);
+  document.getElementById('pent-title').innerHTML = pianoMode
+    ? 'Pentatonic Notes'
+    : 'Pentatonic Improv &nbsp;·&nbsp; low E string root';
+  if (currentPents) renderPents(currentPents);
+  if (document.getElementById('modal').style.display !== 'none') renderModalDiagram();
+}
 
 // ── Music theory ──────────────────────────────────────────────────────────────
 
@@ -367,26 +420,24 @@ function chordName(display, quality) {
   return display;
 }
 
-// Pentatonic positions: returns two { fret, note, desc } objects
+// Pentatonic positions: returns two { fret, note, noteIdx, pentType, desc } objects
 function pentInfo(rootIdx, mode) {
   const rootDisp = DISPLAY[rootIdx];
   const rootFret = fretOf(rootIdx);
 
   if (mode === 'major') {
-    // Relative minor = 6th degree = root + 9 semitones
     const relIdx  = (rootIdx + 9) % 12;
     const relDisp = DISPLAY[relIdx];
     return [
-      { fret: rootFret, note: rootDisp,        desc: 'Major pentatonic' },
-      { fret: fretOf(relIdx), note: relDisp + 'm', desc: 'Minor pent (relative)' },
+      { fret: rootFret,       note: rootDisp,         noteIdx: rootIdx, pentType: 'major', desc: 'Major pentatonic'      },
+      { fret: fretOf(relIdx), note: relDisp + 'm',    noteIdx: relIdx,  pentType: 'minor', desc: 'Minor pent (relative)' },
     ];
   } else {
-    // Relative major = 3rd degree = root + 3 semitones
     const relIdx  = (rootIdx + 3) % 12;
     const relDisp = DISPLAY[relIdx];
     return [
-      { fret: rootFret,       note: rootDisp + 'm', desc: 'Minor pentatonic' },
-      { fret: fretOf(relIdx), note: relDisp,         desc: 'Major pent (relative)' },
+      { fret: rootFret,       note: rootDisp + 'm',   noteIdx: rootIdx, pentType: 'minor', desc: 'Minor pentatonic'      },
+      { fret: fretOf(relIdx), note: relDisp,           noteIdx: relIdx,  pentType: 'major', desc: 'Major pent (relative)' },
     ];
   }
 }
@@ -528,10 +579,61 @@ function chordDiagramSVG(frets, base) {
   return o;
 }
 
+// ── Piano keyboard SVG renderer ───────────────────────────────────────────────
+// octaves=2 for chord modal, octaves=1 for pent items
+function pianoSVG(highlightSet, octaves) {
+  const WW = octaves === 1 ? 13 : 16;
+  const WH = octaves === 1 ? 44 : 56;
+  const BW = octaves === 1 ?  8 : 10;
+  const BH = octaves === 1 ? 27 : 35;
+  const pad = 1;
+  const WHITE_NOTES = [0, 2, 4, 5, 7, 9, 11];
+  const BLACK_KEYS  = [{n:1,p:0.63},{n:3,p:1.63},{n:6,p:3.63},{n:8,p:4.63},{n:10,p:5.63}];
+  const W = octaves * 7 * WW + 2 * pad, H = WH + 2 * pad;
+  let o = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">`;
+
+  for (let oct = 0; oct < octaves; oct++) {
+    WHITE_NOTES.forEach((n, i) => {
+      const x = pad + (oct * 7 + i) * WW;
+      const lit = highlightSet.has(n);
+      o += `<rect x="${x}" y="${pad}" width="${WW - 1}" height="${WH}" fill="${lit ? '#c8a96e' : '#dedad2'}" stroke="#555" stroke-width="0.8" rx="2"/>`;
+    });
+  }
+  for (let oct = 0; oct < octaves; oct++) {
+    BLACK_KEYS.forEach(({n, p}) => {
+      const x = pad + (oct * 7 + p) * WW - BW / 2;
+      const lit = highlightSet.has(n);
+      o += `<rect x="${x}" y="${pad}" width="${BW}" height="${BH}" fill="${lit ? '#7a5010' : '#1e1e2e'}" stroke="#111" stroke-width="0.5" rx="2"/>`;
+    });
+  }
+
+  o += '</svg>';
+  return o;
+}
+
+const PENT_MAJOR_IVLS = [0, 2, 4, 7, 9];
+const PENT_MINOR_IVLS = [0, 3, 5, 7, 10];
+
+function pianoChordSVG(noteIdx, quality) {
+  const ivls = quality === 'maj' ? [0,4,7] : quality === 'min' ? [0,3,7] : [0,3,6];
+  return pianoSVG(new Set(ivls.map(i => (noteIdx + i) % 12)), 2);
+}
+
+function pianoPentSVG(noteIdx, pentType) {
+  const ivls = pentType === 'major' ? PENT_MAJOR_IVLS : PENT_MINOR_IVLS;
+  return pianoSVG(new Set(ivls.map(i => (noteIdx + i) % 12)), 1);
+}
+
 // ── Modal ─────────────────────────────────────────────────────────────────────
 let modalChord = null, modalVariant = 0;
 
 function renderModalDiagram() {
+  if (pianoMode) {
+    document.getElementById('modal-diagram').innerHTML = pianoChordSVG(modalNoteIdx, modalQuality);
+    document.getElementById('modal-desc').textContent = 'Piano voicing';
+    document.getElementById('modal-alt-btn').style.display = 'none';
+    return;
+  }
   const variants = CHORD_DATA[modalChord];
   const v = variants ? variants[modalVariant] : null;
   document.getElementById('modal-diagram').innerHTML =
@@ -550,8 +652,10 @@ function nextVariant() {
   renderModalDiagram();
 }
 
-function showChordModal(display, quality) {
+function showChordModal(display, quality, noteIdx) {
   modalChord   = quality === 'min' ? display + 'm' : display;
+  modalNoteIdx = noteIdx;
+  modalQuality = quality;
   modalVariant = 0;
   document.getElementById('modal-name').textContent = chordName(display, quality);
   renderModalDiagram();
@@ -651,31 +755,42 @@ function generate() {
     box.innerHTML =
       '<div class="chord-num">' + c.numeral + '</div>' +
       '<div class="chord-name">' + chordName(c.display, c.quality) + '</div>';
-    box.addEventListener('click', () => showChordModal(c.display, c.quality));
+    box.addEventListener('click', () => showChordModal(c.display, c.quality, c.noteIdx));
     chordsEl.appendChild(box);
   });
 
   // Render pentatonic panel
-  const pents   = pentInfo(rootIdx, mode);
-  const pentEl  = document.getElementById('pent-items');
-  pentEl.innerHTML = '';
-  pents.forEach(p => {
-    const item = document.createElement('div');
-    item.className = 'pent-item';
-    const fretHTML = p.fret === 0
-      ? '<div class="pent-open">Open</div>'
-      : '<div class="pent-fret">' + p.fret + '</div>';
-    item.innerHTML =
-      fretHTML +
-      '<div class="pent-note">' + p.note + '</div>' +
-      '<div class="pent-desc">' + p.desc + '</div>';
-    pentEl.appendChild(item);
-  });
+  currentPents = pentInfo(rootIdx, mode);
+  renderPents(currentPents);
 
   // Show result, hide placeholder
   document.getElementById('placeholder').style.display = 'none';
   chordsEl.style.display    = 'flex';
   document.getElementById('pent').style.display = 'block';
+}
+
+function renderPents(pents) {
+  const pentEl = document.getElementById('pent-items');
+  pentEl.innerHTML = '';
+  pents.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'pent-item';
+    if (pianoMode) {
+      item.innerHTML =
+        '<div class="pent-piano">' + pianoPentSVG(p.noteIdx, p.pentType) + '</div>' +
+        '<div class="pent-note">' + p.note + '</div>' +
+        '<div class="pent-desc">' + p.desc + '</div>';
+    } else {
+      const fretHTML = p.fret === 0
+        ? '<div class="pent-open">Open</div>'
+        : '<div class="pent-fret">' + p.fret + '</div>';
+      item.innerHTML =
+        fretHTML +
+        '<div class="pent-note">' + p.note + '</div>' +
+        '<div class="pent-desc">' + p.desc + '</div>';
+    }
+    pentEl.appendChild(item);
+  });
 }
 </script>
 </body>
