@@ -174,12 +174,12 @@
       background: var(--surface);
       border: 1px solid #3a3a4a;
       border-radius: 12px;
-      color: var(--text);
+      color: #fff;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
       transition: all 0.15s;
     }
-    .btn-icon:disabled { opacity: 0.3; }
+    .btn-icon:disabled { opacity: 0.25; }
     .btn-icon.starred  { color: var(--accent); border-color: var(--accent); }
 
     .saved-btn {
@@ -187,7 +187,7 @@
       background: transparent;
       border: 1px solid #3a3a4a;
       border-radius: 10px;
-      color: var(--text);
+      color: #fff;
       font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
@@ -214,30 +214,39 @@
     .saved-chords { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
     .saved-del    { background: none; border: none; color: #666; font-size: 1rem; cursor: pointer; padding: 4px 8px; flex-shrink: 0; }
 
-    /* ── Mode toggle ── */
+    /* ── Mode segmented control ── */
     .mode-row {
       display: flex;
       justify-content: flex-end;
       flex-shrink: 0;
     }
 
-    .mode-btn {
+    .mode-seg {
+      display: flex;
+      gap: 4px;
       background: var(--surface);
-      border: 1px solid #3a3a4a;
-      border-radius: 20px;
-      color: var(--text);
-      font-size: 0.78rem;
+      border-radius: 10px;
+      padding: 3px;
+    }
+
+    .mode-opt {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 7px;
+      background: transparent;
+      color: #fff;
+      font-size: 0.75rem;
       font-weight: 600;
-      padding: 6px 14px;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
+      opacity: 0.45;
       transition: all 0.15s;
     }
 
-    .mode-btn.active {
+    .mode-opt.active {
       background: var(--surface2);
       color: var(--accent);
-      border-color: var(--accent);
+      opacity: 1;
     }
 
     /* ── Generate button ── */
@@ -385,7 +394,10 @@
 </div>
 
 <div class="mode-row">
-  <button class="mode-btn" id="mode-btn" onclick="toggleMode()">🎹 Piano</button>
+  <div class="mode-seg">
+    <button class="mode-opt active" id="mode-guitar" onclick="setMode('guitar')">🎸 Guitar</button>
+    <button class="mode-opt"        id="mode-piano"  onclick="setMode('piano')">🎹 Piano</button>
+  </div>
 </div>
 
 <div class="key-row" id="key-row"></div>
@@ -517,11 +529,10 @@ function deleteStar(i) {
 function closeSaved() { document.getElementById('saved-modal').style.display = 'none'; }
 function loadStarSet(set) { pushHistory(set); renderSet(set); }
 
-function toggleMode() {
-  pianoMode = !pianoMode;
-  const btn = document.getElementById('mode-btn');
-  btn.textContent = pianoMode ? '🎸 Guitar' : '🎹 Piano';
-  btn.classList.toggle('active', pianoMode);
+function setMode(mode) {
+  pianoMode = mode === 'piano';
+  document.getElementById('mode-guitar').classList.toggle('active', !pianoMode);
+  document.getElementById('mode-piano').classList.toggle('active',  pianoMode);
   document.getElementById('pent-title').innerHTML = pianoMode
     ? 'Pentatonic Notes'
     : 'Pentatonic Improv &nbsp;·&nbsp; low E string root';
