@@ -174,7 +174,7 @@
       background: var(--surface);
       border: 1px solid #3a3a4a;
       border-radius: 12px;
-      color: var(--muted);
+      color: var(--text);
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
       transition: all 0.15s;
@@ -187,7 +187,7 @@
       background: transparent;
       border: 1px solid #3a3a4a;
       border-radius: 10px;
-      color: var(--muted);
+      color: var(--text);
       font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
@@ -225,7 +225,7 @@
       background: var(--surface);
       border: 1px solid #3a3a4a;
       border-radius: 20px;
-      color: var(--muted);
+      color: var(--text);
       font-size: 0.78rem;
       font-weight: 600;
       padding: 6px 14px;
@@ -273,17 +273,19 @@
       border: none;
       border-radius: 8px;
       background: transparent;
-      color: var(--muted);
+      color: var(--text);
       font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
       transition: all 0.15s;
+      opacity: 0.5;
     }
 
     .diff-btn.active {
       background: var(--surface2);
-      color: var(--text);
+      color: var(--accent);
+      opacity: 1;
     }
 
     /* ── Chord modal ── */
@@ -333,7 +335,7 @@
     .modal-close {
       padding: 8px 22px;
       background: transparent;
-      color: var(--muted);
+      color: var(--text);
       border: 1px solid #3a3a4a;
       border-radius: 8px;
       font-size: 0.85rem;
