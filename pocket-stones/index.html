@@ -257,6 +257,32 @@
     #btn-bad  { background: var(--bad-btn); }
     #btn-bad:active  { background: var(--bad-btn-p); }
 
+    /* ── Reset day button ── */
+    #btn-reset-day {
+      background: none;
+      box-shadow: none;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.35rem 1rem;
+      width: auto;
+      border: 1px solid rgba(176,152,120,0.3);
+      border-radius: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    #btn-reset-day:active {
+      transform: none;
+      box-shadow: none;
+      background: rgba(176,152,120,0.08);
+    }
+    .reset-area {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      justify-content: center;
+    }
+
     /* ── Toast ── */
     .toast {
       position: fixed;
@@ -288,6 +314,72 @@
       border-color: #b0c4f8;
       box-shadow: 0 6px 28px rgba(70,100,210,0.14);
     }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(60,40,20,0.4);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.2rem;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease;
+    }
+    .modal-overlay.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .modal {
+      background: #fffcf5;
+      border: 1.5px solid #f0ddb0;
+      border-radius: 22px;
+      padding: 1.6rem 1.4rem 1.3rem;
+      max-width: 320px;
+      width: 100%;
+      box-shadow: 0 16px 50px rgba(100,60,0,0.18);
+      transform: translateY(14px) scale(0.96);
+      transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .modal-overlay.show .modal { transform: translateY(0) scale(1); }
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #c07018;
+      text-align: center;
+      margin-bottom: 0.55rem;
+    }
+    .modal-body {
+      font-size: 0.9rem;
+      color: var(--text);
+      text-align: center;
+      line-height: 1.55;
+      margin-bottom: 1.2rem;
+    }
+    .modal-body strong { color: var(--happy-count); }
+    .modal-actions {
+      display: flex;
+      gap: 0.55rem;
+    }
+    .modal-actions button {
+      flex: 1;
+      width: auto;
+      padding: 0.8rem;
+      font-size: 0.88rem;
+    }
+    .btn-secondary {
+      background: #e8e2d6;
+      color: var(--text);
+      box-shadow: 0 4px 0 rgba(0,0,0,0.07);
+    }
+    .btn-secondary:active { background: #d8d2c6; }
+    .btn-primary { background: var(--good-btn); }
+    .btn-primary:active { background: var(--good-btn-p); }
   </style>
 </head>
 <body>
@@ -326,7 +418,22 @@
     <button id="btn-bad">🌧️ Bad thing happened</button>
   </div>
 
+  <div class="reset-area">
+    <button id="btn-reset-day">↺ reset day</button>
+  </div>
+
   <div class="toast" id="toast"></div>
+
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-title" id="modal-title"></div>
+      <p class="modal-body" id="modal-body"></p>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="modal-cancel"></button>
+        <button class="btn-primary" id="modal-confirm"></button>
+      </div>
+    </div>
+  </div>
 
   <script>
     // ── Easy to add to: motivational quotes shown in the banner ──
@@ -372,13 +479,26 @@
     // ─────────────────────────────────────────
     const STORAGE_KEY = 'pocket-stones';
     const STONE_MAX   = 36;
-    let state = { happy: 0, sad: 0 };
+    const RESET_HOUR  = 3; // "day" starts at 3am
+
+    // Returns a string key representing which day it is, where the day
+    // rolls over at RESET_HOUR instead of midnight.
+    function getDayKey(date) {
+      const d = new Date(date.getTime() - RESET_HOUR * 3600 * 1000);
+      return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    }
+
+    let state = { happy: 0, sad: 0, lastDay: null };
 
     function load() {
       try {
         const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
         if (s && typeof s.happy === 'number' && typeof s.sad === 'number') {
-          state = { happy: Math.max(0, s.happy), sad: Math.max(0, s.sad) };
+          state = {
+            happy:   Math.max(0, s.happy),
+            sad:     Math.max(0, s.sad),
+            lastDay: s.lastDay || null,
+          };
         }
       } catch (_) {}
     }
@@ -492,8 +612,84 @@
     document.getElementById('btn-good').addEventListener('click', goodHappened);
     document.getElementById('btn-bad').addEventListener('click', badHappened);
 
+    // ── Modal ──
+    const overlay      = document.getElementById('modal-overlay');
+    const modalTitle   = document.getElementById('modal-title');
+    const modalBody    = document.getElementById('modal-body');
+    const modalCancel  = document.getElementById('modal-cancel');
+    const modalConfirm = document.getElementById('modal-confirm');
+    let pendingConfirm = null;
+    let pendingCancel  = null;
+
+    function showModal(title, body, confirmLabel, cancelLabel, onConfirm, onCancel) {
+      modalTitle.textContent   = title;
+      modalBody.innerHTML      = body;
+      modalConfirm.textContent = confirmLabel;
+      modalCancel.textContent  = cancelLabel;
+      pendingConfirm = onConfirm;
+      pendingCancel  = onCancel;
+      overlay.classList.add('show');
+    }
+
+    function hideModal() {
+      overlay.classList.remove('show');
+      pendingConfirm = null;
+      pendingCancel  = null;
+    }
+
+    modalConfirm.addEventListener('click', () => { const cb = pendingConfirm; hideModal(); cb && cb(); });
+    modalCancel.addEventListener('click',  () => { const cb = pendingCancel;  hideModal(); cb && cb(); });
+
+    // ── Daily reset logic ──
+    function performReset(newDay) {
+      state = { happy: 0, sad: 0, lastDay: newDay };
+      save();
+      render(null);
+    }
+
+    function carryOver(newDay) {
+      state.lastDay = newDay;
+      save();
+    }
+
+    function checkDailyReset() {
+      if (overlay.classList.contains('show')) return;
+      const today = getDayKey(new Date());
+      if (!state.lastDay) { state.lastDay = today; save(); return; }
+      if (state.lastDay === today) return;
+
+      const h    = state.happy;
+      const body = `Yesterday you had <strong>${h} happy stone${h !== 1 ? 's' : ''}</strong>.<br>Start fresh today?`;
+      showModal('🌅 Good morning!', body, 'Start Fresh', 'Keep Going',
+        () => performReset(today),
+        () => carryOver(today),
+      );
+    }
+
+    function showManualResetModal() {
+      const h    = state.happy;
+      const body = `You have <strong>${h} happy stone${h !== 1 ? 's' : ''}</strong> right now.<br>Reset everything for a fresh start?`;
+      showModal('Reset Day?', body, 'Reset', 'Cancel',
+        () => performReset(getDayKey(new Date())),
+        null,
+      );
+    }
+
+    document.getElementById('btn-reset-day').addEventListener('click', showManualResetModal);
+
+    // Check for 3am day boundary while the app is open (once per minute, and on tab focus).
+    let lastPolledDay = getDayKey(new Date());
+    function pollDayChange() {
+      if (overlay.classList.contains('show')) return;
+      const today = getDayKey(new Date());
+      if (today !== lastPolledDay) { lastPolledDay = today; checkDailyReset(); }
+    }
+    setInterval(pollDayChange, 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) pollDayChange(); });
+
     load();
     render(null);
+    checkDailyReset();
   </script>
 </body>
 </html>
