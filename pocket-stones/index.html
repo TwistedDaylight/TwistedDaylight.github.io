@@ -4,24 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>Pocket Stones</title>
   <style>
     :root {
-      --bg:         #0c0a08;
-      --happy-bg:   #1e1208;
-      --sad-bg:     #080e18;
-      --happy-rim:  #5a3a10;
-      --sad-rim:    #1a2e4a;
-      --stone:      #7a6e60;
-      --stone-hi:   #a09080;
-      --stone-sh:   #3a322a;
-      --text:       #e0d8cc;
-      --muted:      #6a6058;
-      --good-btn:   #c07820;
-      --bad-btn:    #3a62a0;
-      --good-btn-h: #e09030;
-      --bad-btn-h:  #4a72b0;
+      --bg:           #fef6e4;
+      --banner-bg:    #fffcf5;
+      --banner-border:#f0ddb0;
+      --happy-bg:     #fffbe8;
+      --happy-border: #f0c030;
+      --happy-floor:  rgba(240,190,40,0.13);
+      --happy-label:  #b07818;
+      --happy-count:  #c4880a;
+      --sad-bg:       #eef2ff;
+      --sad-border:   #9ab0f0;
+      --sad-floor:    rgba(90,130,220,0.1);
+      --sad-label:    #4868c8;
+      --sad-count:    #3858b8;
+      --text:         #3d2b1f;
+      --muted:        #b09878;
+      --good-btn:     #f5a020;
+      --good-btn-p:   #d98c10;
+      --bad-btn:      #7898e8;
+      --bad-btn-p:    #5878d0;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -29,32 +34,68 @@
     body {
       font-family: system-ui, -apple-system, sans-serif;
       background: var(--bg);
+      background-image: radial-gradient(ellipse at 50% 0%, #fff8e8 0%, #fef6e4 60%);
       color: var(--text);
       min-height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 1.2rem 1rem 1.4rem;
-      gap: 1.2rem;
+      padding: 1rem 0.9rem 1.4rem;
+      gap: 0.85rem;
       -webkit-tap-highlight-color: transparent;
       user-select: none;
     }
 
-    header {
+    /* ── Header ── */
+    .app-header {
       text-align: center;
     }
-    header h1 {
-      font-size: 1.3rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      color: var(--text);
+    .app-title {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #c07018;
+      letter-spacing: -0.01em;
     }
-    header p {
-      font-size: 0.78rem;
+    .app-sub {
+      font-size: 0.72rem;
       color: var(--muted);
-      margin-top: 0.2rem;
+      margin-top: 0.1rem;
     }
 
+    /* ── Quote Banner ── */
+    .banner {
+      width: 100%;
+      max-width: 480px;
+      background: var(--banner-bg);
+      border: 1.5px solid var(--banner-border);
+      border-radius: 16px;
+      padding: 0.85rem 1.2rem;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(200,150,60,0.1);
+      min-height: 74px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+    }
+    .banner-eyebrow {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .quote-text {
+      font-size: 0.9rem;
+      color: var(--text);
+      font-style: italic;
+      line-height: 1.4;
+      transition: opacity 0.45s ease;
+    }
+    .quote-text.fade { opacity: 0; }
+
+    /* ── Pockets ── */
     .pockets {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -65,99 +106,125 @@
     }
 
     .pocket {
-      border-radius: 16px;
-      padding: 0.9rem 0.75rem 0.75rem;
+      border-radius: 20px;
+      padding: 0.75rem 0.7rem 0;
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
-      min-height: 220px;
-      transition: transform 0.12s ease;
+      min-height: 210px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 3px 16px rgba(0,0,0,0.07);
+      transition: transform 0.13s cubic-bezier(0.34,1.56,0.64,1);
     }
-    .pocket.pop {
-      transform: scale(1.03);
-    }
+    .pocket.pop { transform: scale(1.04); }
 
     .pocket.happy {
       background: var(--happy-bg);
-      border: 1.5px solid var(--happy-rim);
+      border: 2px solid var(--happy-border);
     }
     .pocket.sad {
       background: var(--sad-bg);
-      border: 1.5px solid var(--sad-rim);
+      border: 2px solid var(--sad-border);
     }
 
-    .pocket-label {
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-      color: var(--muted);
+    /* jar floor strip */
+    .pocket::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 14px;
+      border-radius: 0 0 18px 18px;
+      pointer-events: none;
+    }
+    .pocket.happy::after { background: var(--happy-floor); }
+    .pocket.sad::after   { background: var(--sad-floor); }
+
+    .pocket-header {
       display: flex;
       align-items: center;
       gap: 0.3rem;
+      margin-bottom: 0.35rem;
+      flex-shrink: 0;
     }
-    .pocket.happy .pocket-label { color: #b07030; }
-    .pocket.sad   .pocket-label { color: #4070a0; }
+    .pocket-emoji { font-size: 1.05rem; line-height: 1; }
+    .pocket-name {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      flex: 1;
+    }
+    .pocket.happy .pocket-name { color: var(--happy-label); }
+    .pocket.sad   .pocket-name { color: var(--sad-label); }
 
     .pocket-count {
-      font-size: 1.6rem;
-      font-weight: 700;
+      font-size: 1.45rem;
+      font-weight: 800;
       line-height: 1;
     }
-    .pocket.happy .pocket-count { color: #e09848; }
-    .pocket.sad   .pocket-count { color: #5888c0; }
+    .pocket.happy .pocket-count { color: var(--happy-count); }
+    .pocket.sad   .pocket-count { color: var(--sad-count); }
 
+    /* Stones fill from the bottom */
     .stones-area {
       flex: 1;
       display: flex;
       flex-wrap: wrap;
-      align-content: flex-start;
+      align-content: flex-end;
       gap: 5px;
-      padding-top: 0.3rem;
+      padding: 0.3rem 0.15rem 0.9rem;
+      position: relative;
     }
 
+    /* Stones */
     .stone {
-      width: 22px;
-      height: 16px;
       border-radius: 50%;
-      background: radial-gradient(ellipse at 35% 35%, var(--stone-hi), var(--stone) 55%, var(--stone-sh));
-      box-shadow: 0 1px 3px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
       flex-shrink: 0;
+      height: 14px;
+      width: 21px;
     }
+    .stone:nth-child(4n+1) { width: 19px; height: 13px; }
+    .stone:nth-child(4n+2) { width: 24px; height: 16px; }
+    .stone:nth-child(4n+3) { width: 20px; height: 14px; }
+    .stone:nth-child(4n)   { width: 17px; height: 12px; }
+
+    .pocket.happy .stone {
+      background: radial-gradient(ellipse at 38% 30%, #f8e898, #d4a030 52%, #8a5808);
+      box-shadow: 0 2px 5px rgba(100,60,0,0.22), inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+    .pocket.sad .stone {
+      background: radial-gradient(ellipse at 38% 30%, #c8d8f8, #7898e0 52%, #3050a8);
+      box-shadow: 0 2px 5px rgba(40,60,130,0.18), inset 0 1px 0 rgba(255,255,255,0.25);
+    }
+
     .stone.new-stone {
-      animation: stoneIn 0.28s ease-out both;
+      animation: stoneIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
     }
     @keyframes stoneIn {
-      from { opacity: 0; transform: scale(0.3) rotate(-20deg); }
+      from { opacity: 0; transform: scale(0.1) rotate(-25deg); }
       to   { opacity: 1; transform: scale(1) rotate(0deg); }
     }
 
-    .pocket.happy .stone {
-      background: radial-gradient(ellipse at 35% 35%, #c8a870, #9a7840 55%, #4a3010);
-    }
-    .pocket.sad .stone {
-      background: radial-gradient(ellipse at 35% 35%, #8098b8, #506888 55%, #1a2838);
-    }
-
     .empty-label {
-      font-size: 0.75rem;
+      width: 100%;
+      text-align: center;
+      font-size: 0.72rem;
       color: var(--muted);
       font-style: italic;
-      margin-top: 0.3rem;
+      padding-bottom: 0.4rem;
     }
-
     .overflow-label {
-      font-size: 0.7rem;
+      width: 100%;
+      text-align: right;
+      font-size: 0.65rem;
       color: var(--muted);
-      align-self: flex-end;
-      margin-top: auto;
-      padding-top: 0.2rem;
     }
 
+    /* ── Buttons ── */
     .actions {
       display: flex;
       flex-direction: column;
-      gap: 0.65rem;
+      gap: 0.6rem;
       width: 100%;
       max-width: 480px;
     }
@@ -166,186 +233,260 @@
       width: 100%;
       padding: 1rem 1.2rem;
       border: none;
-      border-radius: 12px;
+      border-radius: 16px;
       font-size: 1rem;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: background 0.15s, transform 0.1s;
+      color: #fff;
+      letter-spacing: 0.01em;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
-      letter-spacing: 0.01em;
+      gap: 0.45rem;
+      transition: background 0.12s, transform 0.08s;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.13);
+      -webkit-tap-highlight-color: transparent;
     }
     button:active {
-      transform: scale(0.97);
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.13);
     }
 
-    #btn-good {
-      background: var(--good-btn);
-      color: #fff8ee;
-    }
-    #btn-good:hover { background: var(--good-btn-h); }
+    #btn-good { background: var(--good-btn); }
+    #btn-good:active { background: var(--good-btn-p); }
+    #btn-bad  { background: var(--bad-btn); }
+    #btn-bad:active  { background: var(--bad-btn-p); }
 
-    #btn-bad {
-      background: var(--bad-btn);
-      color: #eef4ff;
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 6.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: #fffcf5;
+      border: 1.5px solid #f0d898;
+      border-radius: 18px;
+      padding: 0.7rem 1.3rem;
+      font-size: 0.93rem;
+      font-weight: 600;
+      color: var(--text);
+      box-shadow: 0 6px 28px rgba(180,130,30,0.16);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
+      white-space: nowrap;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
-    #btn-bad:hover { background: var(--bad-btn-h); }
-
-    .btn-sub {
-      font-size: 0.72rem;
-      font-weight: 400;
-      opacity: 0.75;
-      display: block;
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .toast.sad-toast {
+      border-color: #b0c4f8;
+      box-shadow: 0 6px 28px rgba(70,100,210,0.14);
     }
   </style>
 </head>
 <body>
 
-  <header>
-    <h1>Pocket Stones</h1>
-    <p>one stone at a time</p>
-  </header>
+  <div class="app-header">
+    <div class="app-title">🪨 Pocket Stones</div>
+    <div class="app-sub">one stone at a time</div>
+  </div>
+
+  <div class="banner">
+    <div class="banner-eyebrow">✨ a little reminder</div>
+    <p class="quote-text" id="quote-text"></p>
+  </div>
 
   <div class="pockets">
     <div class="pocket happy" id="pocket-happy">
-      <div class="pocket-label">☀️ Happy</div>
-      <div class="pocket-count" id="count-happy">0</div>
+      <div class="pocket-header">
+        <span class="pocket-emoji">☀️</span>
+        <span class="pocket-name">Happy</span>
+        <span class="pocket-count" id="count-happy">0</span>
+      </div>
       <div class="stones-area" id="stones-happy"></div>
     </div>
     <div class="pocket sad" id="pocket-sad">
-      <div class="pocket-label">🌧️ Sad</div>
-      <div class="pocket-count" id="count-sad">0</div>
+      <div class="pocket-header">
+        <span class="pocket-emoji">🌧️</span>
+        <span class="pocket-name">Sad</span>
+        <span class="pocket-count" id="count-sad">0</span>
+      </div>
       <div class="stones-area" id="stones-sad"></div>
     </div>
   </div>
 
   <div class="actions">
-    <button id="btn-good">
-      <span>✨ Good thing happened</span>
-    </button>
-    <button id="btn-bad">
-      <span>💔 Bad thing happened</span>
-    </button>
+    <button id="btn-good">☀️ Good thing happened</button>
+    <button id="btn-bad">🌧️ Bad thing happened</button>
   </div>
 
-  <script>
-    const STORAGE_KEY = 'pocket-stones';
-    const STONE_DISPLAY_MAX = 36;
+  <div class="toast" id="toast"></div>
 
+  <script>
+    // ── Easy to add to: motivational quotes shown in the banner ──
+    const QUOTES = [
+      "Every little good thing counts.",
+      "Small moments, big meaning.",
+      "You're doing better than you think.",
+      "It's okay to collect a few rainy stones.",
+      "Even tiny lights push back the dark.",
+      "Be gentle with yourself today.",
+      "Good things are worth noticing.",
+      "One stone at a time.",
+      "You showed up. That matters.",
+      "The good moments are real, even when they're small.",
+      "Rain makes the sunny days sweeter.",
+      "A full happy pocket starts with one stone.",
+    ];
+
+    // ── Easy to add to: popup when a good thing happens ──
+    const HAPPY_MESSAGES = [
+      { icon: "🪨", text: "You found a stone!" },
+      { icon: "✨", text: "A little sparkle in your pocket." },
+      { icon: "☀️", text: "A sunny stone for a sunny moment." },
+      { icon: "🌟", text: "One more good thing — it counts!" },
+      { icon: "🎉", text: "A happy stone joins the crew!" },
+      { icon: "🌻", text: "Growing your happy collection!" },
+      { icon: "💛", text: "Ooh, a warm one!" },
+      { icon: "🌈", text: "Pocketed! Nice." },
+    ];
+
+    // ── Easy to add to: popup when a bad thing happens ──
+    const SAD_MESSAGES = [
+      { icon: "🥾", text: "Oof, there's something in my shoe." },
+      { icon: "🌧️", text: "Into the rain pocket it goes." },
+      { icon: "💙", text: "A hard moment, held with care." },
+      { icon: "🪨", text: "A heavy stone for a heavy moment." },
+      { icon: "🌫️", text: "Cloudy days count too." },
+      { icon: "😮‍💨", text: "That one goes in the rough pile." },
+      { icon: "🌊", text: "Waves come and go." },
+      { icon: "🫂",  text: "Rough patch. You've got this." },
+    ];
+
+    // ─────────────────────────────────────────
+    const STORAGE_KEY = 'pocket-stones';
+    const STONE_MAX   = 36;
     let state = { happy: 0, sad: 0 };
 
     function load() {
       try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        if (saved && typeof saved.happy === 'number' && typeof saved.sad === 'number') {
-          state = { happy: Math.max(0, saved.happy), sad: Math.max(0, saved.sad) };
+        const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (s && typeof s.happy === 'number' && typeof s.sad === 'number') {
+          state = { happy: Math.max(0, s.happy), sad: Math.max(0, s.sad) };
         }
       } catch (_) {}
     }
-
     function save() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
 
-    function renderPocket(pocket, count, newStone) {
-      const area = document.getElementById('stones-' + pocket);
-      const countEl = document.getElementById('count-' + pocket);
+    // ── Quote rotation ──
+    const quoteEl = document.getElementById('quote-text');
+    let quoteIdx = Math.floor(Math.random() * QUOTES.length);
+    quoteEl.textContent = QUOTES[quoteIdx];
+
+    setInterval(() => {
+      quoteEl.classList.add('fade');
+      setTimeout(() => {
+        quoteIdx = (quoteIdx + 1) % QUOTES.length;
+        quoteEl.textContent = QUOTES[quoteIdx];
+        quoteEl.classList.remove('fade');
+      }, 450);
+    }, 8000);
+
+    // ── Toast ──
+    const toastEl = document.getElementById('toast');
+    let toastTimer = null;
+
+    function showToast(msg, isSad) {
+      if (toastTimer) clearTimeout(toastTimer);
+      toastEl.innerHTML = `<span>${msg.icon}</span><span>${msg.text}</span>`;
+      toastEl.classList.toggle('sad-toast', isSad);
+      toastEl.classList.add('show');
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2400);
+    }
+
+    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    // ── Pocket rendering ──
+    function renderPocket(id, count, addNew) {
+      const area     = document.getElementById('stones-' + id);
+      const countEl  = document.getElementById('count-' + id);
       countEl.textContent = count;
 
-      const displayCount = Math.min(count, STONE_DISPLAY_MAX);
-      const overflow = count - displayCount;
+      const shown    = Math.min(count, STONE_MAX);
+      const overflow = count - shown;
+      const current  = area.querySelectorAll('.stone').length;
 
-      const existing = area.querySelectorAll('.stone').length;
+      // clear transient labels first
+      area.querySelector('.empty-label')    ?.remove();
+      area.querySelector('.overflow-label') ?.remove();
 
-      if (newStone && count > existing) {
-        // Add one new stone with animation
-        const stone = document.createElement('div');
-        stone.className = 'stone new-stone';
-        area.appendChild(stone);
-        setTimeout(() => stone.classList.remove('new-stone'), 350);
-      } else if (count < existing) {
-        // Remove excess stones
-        const toRemove = existing - displayCount;
+      if (addNew && shown > current) {
+        const s = document.createElement('div');
+        s.className = 'stone new-stone';
+        area.appendChild(s);
+        setTimeout(() => s.classList.remove('new-stone'), 400);
+      } else if (!addNew && shown < current) {
         const stones = area.querySelectorAll('.stone');
-        for (let i = 0; i < toRemove; i++) {
-          area.removeChild(stones[stones.length - 1 - i]);
-        }
-      } else if (!newStone && displayCount !== existing) {
-        // Full re-render (e.g. on load)
+        for (let i = current - 1; i >= shown; i--) area.removeChild(stones[i]);
+      } else if (!addNew && shown !== current) {
         area.innerHTML = '';
-        for (let i = 0; i < displayCount; i++) {
-          const stone = document.createElement('div');
-          stone.className = 'stone';
-          area.appendChild(stone);
+        for (let i = 0; i < shown; i++) {
+          const s = document.createElement('div');
+          s.className = 'stone';
+          area.appendChild(s);
         }
       }
 
-      // Overflow label
-      let overflowEl = area.nextElementSibling;
-      if (overflowEl && overflowEl.classList.contains('overflow-label')) {
-        overflowEl.remove();
-      }
       if (overflow > 0) {
-        const label = document.createElement('div');
-        label.className = 'overflow-label';
-        label.textContent = '+' + overflow + ' more';
-        area.insertAdjacentElement('afterend', label);
+        const ol = document.createElement('div');
+        ol.className = 'overflow-label';
+        ol.textContent = '+' + overflow + ' more';
+        area.appendChild(ol);
       }
-
-      // Empty label
-      let emptyEl = area.querySelector('.empty-label');
       if (count === 0) {
-        if (!emptyEl) {
-          emptyEl = document.createElement('div');
-          emptyEl.className = 'empty-label';
-          emptyEl.textContent = 'empty';
-          area.appendChild(emptyEl);
-        }
-      } else {
-        if (emptyEl) emptyEl.remove();
+        const el = document.createElement('div');
+        el.className = 'empty-label';
+        el.textContent = 'empty';
+        area.appendChild(el);
       }
     }
 
     function popPocket(id) {
       const el = document.getElementById('pocket-' + id);
       el.classList.add('pop');
-      setTimeout(() => el.classList.remove('pop'), 150);
+      setTimeout(() => el.classList.remove('pop'), 160);
     }
 
-    function render(changedPocket) {
-      renderPocket('happy', state.happy, changedPocket === 'happy-add');
-      renderPocket('sad', state.sad, changedPocket === 'sad-add');
+    function render(addedTo) {
+      renderPocket('happy', state.happy, addedTo === 'happy');
+      renderPocket('sad',   state.sad,   addedTo === 'sad');
     }
 
+    // ── Actions ──
     function goodHappened() {
-      if (state.sad > 0) {
-        state.sad--;
-        state.happy++;
-        popPocket('happy');
-        render('happy-add');
-      } else {
-        state.happy++;
-        popPocket('happy');
-        render('happy-add');
-      }
+      if (state.sad > 0) { state.sad--; state.happy++; }
+      else                { state.happy++; }
+      popPocket('happy');
+      render('happy');
       save();
+      showToast(pick(HAPPY_MESSAGES), false);
     }
 
     function badHappened() {
-      if (state.happy > 0) {
-        state.happy--;
-        state.sad++;
-        popPocket('sad');
-        render('sad-add');
-      } else {
-        state.sad++;
-        popPocket('sad');
-        render('sad-add');
-      }
+      if (state.happy > 0) { state.happy--; state.sad++; }
+      else                  { state.sad++; }
+      popPocket('sad');
+      render('sad');
       save();
+      showToast(pick(SAD_MESSAGES), true);
     }
 
     document.getElementById('btn-good').addEventListener('click', goodHappened);
