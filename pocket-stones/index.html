@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Pocket Stones</title>
+  <style>
+    :root {
+      --bg:         #0c0a08;
+      --happy-bg:   #1e1208;
+      --sad-bg:     #080e18;
+      --happy-rim:  #5a3a10;
+      --sad-rim:    #1a2e4a;
+      --stone:      #7a6e60;
+      --stone-hi:   #a09080;
+      --stone-sh:   #3a322a;
+      --text:       #e0d8cc;
+      --muted:      #6a6058;
+      --good-btn:   #c07820;
+      --bad-btn:    #3a62a0;
+      --good-btn-h: #e09030;
+      --bad-btn-h:  #4a72b0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.2rem 1rem 1.4rem;
+      gap: 1.2rem;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    header {
+      text-align: center;
+    }
+    header h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+    header p {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    .pockets {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 480px;
+      flex: 1;
+    }
+
+    .pocket {
+      border-radius: 16px;
+      padding: 0.9rem 0.75rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-height: 220px;
+      transition: transform 0.12s ease;
+    }
+    .pocket.pop {
+      transform: scale(1.03);
+    }
+
+    .pocket.happy {
+      background: var(--happy-bg);
+      border: 1.5px solid var(--happy-rim);
+    }
+    .pocket.sad {
+      background: var(--sad-bg);
+      border: 1.5px solid var(--sad-rim);
+    }
+
+    .pocket-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .pocket.happy .pocket-label { color: #b07030; }
+    .pocket.sad   .pocket-label { color: #4070a0; }
+
+    .pocket-count {
+      font-size: 1.6rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .pocket.happy .pocket-count { color: #e09848; }
+    .pocket.sad   .pocket-count { color: #5888c0; }
+
+    .stones-area {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: 5px;
+      padding-top: 0.3rem;
+    }
+
+    .stone {
+      width: 22px;
+      height: 16px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse at 35% 35%, var(--stone-hi), var(--stone) 55%, var(--stone-sh));
+      box-shadow: 0 1px 3px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    .stone.new-stone {
+      animation: stoneIn 0.28s ease-out both;
+    }
+    @keyframes stoneIn {
+      from { opacity: 0; transform: scale(0.3) rotate(-20deg); }
+      to   { opacity: 1; transform: scale(1) rotate(0deg); }
+    }
+
+    .pocket.happy .stone {
+      background: radial-gradient(ellipse at 35% 35%, #c8a870, #9a7840 55%, #4a3010);
+    }
+    .pocket.sad .stone {
+      background: radial-gradient(ellipse at 35% 35%, #8098b8, #506888 55%, #1a2838);
+    }
+
+    .empty-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-style: italic;
+      margin-top: 0.3rem;
+    }
+
+    .overflow-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      align-self: flex-end;
+      margin-top: auto;
+      padding-top: 0.2rem;
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    button {
+      width: 100%;
+      padding: 1rem 1.2rem;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      letter-spacing: 0.01em;
+    }
+    button:active {
+      transform: scale(0.97);
+    }
+
+    #btn-good {
+      background: var(--good-btn);
+      color: #fff8ee;
+    }
+    #btn-good:hover { background: var(--good-btn-h); }
+
+    #btn-bad {
+      background: var(--bad-btn);
+      color: #eef4ff;
+    }
+    #btn-bad:hover { background: var(--bad-btn-h); }
+
+    .btn-sub {
+      font-size: 0.72rem;
+      font-weight: 400;
+      opacity: 0.75;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Pocket Stones</h1>
+    <p>one stone at a time</p>
+  </header>
+
+  <div class="pockets">
+    <div class="pocket happy" id="pocket-happy">
+      <div class="pocket-label">☀️ Happy</div>
+      <div class="pocket-count" id="count-happy">0</div>
+      <div class="stones-area" id="stones-happy"></div>
+    </div>
+    <div class="pocket sad" id="pocket-sad">
+      <div class="pocket-label">🌧️ Sad</div>
+      <div class="pocket-count" id="count-sad">0</div>
+      <div class="stones-area" id="stones-sad"></div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="btn-good">
+      <span>✨ Good thing happened</span>
+    </button>
+    <button id="btn-bad">
+      <span>💔 Bad thing happened</span>
+    </button>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'pocket-stones';
+    const STONE_DISPLAY_MAX = 36;
+
+    let state = { happy: 0, sad: 0 };
+
+    function load() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (saved && typeof saved.happy === 'number' && typeof saved.sad === 'number') {
+          state = { happy: Math.max(0, saved.happy), sad: Math.max(0, saved.sad) };
+        }
+      } catch (_) {}
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function renderPocket(pocket, count, newStone) {
+      const area = document.getElementById('stones-' + pocket);
+      const countEl = document.getElementById('count-' + pocket);
+      countEl.textContent = count;
+
+      const displayCount = Math.min(count, STONE_DISPLAY_MAX);
+      const overflow = count - displayCount;
+
+      const existing = area.querySelectorAll('.stone').length;
+
+      if (newStone && count > existing) {
+        // Add one new stone with animation
+        const stone = document.createElement('div');
+        stone.className = 'stone new-stone';
+        area.appendChild(stone);
+        setTimeout(() => stone.classList.remove('new-stone'), 350);
+      } else if (count < existing) {
+        // Remove excess stones
+        const toRemove = existing - displayCount;
+        const stones = area.querySelectorAll('.stone');
+        for (let i = 0; i < toRemove; i++) {
+          area.removeChild(stones[stones.length - 1 - i]);
+        }
+      } else if (!newStone && displayCount !== existing) {
+        // Full re-render (e.g. on load)
+        area.innerHTML = '';
+        for (let i = 0; i < displayCount; i++) {
+          const stone = document.createElement('div');
+          stone.className = 'stone';
+          area.appendChild(stone);
+        }
+      }
+
+      // Overflow label
+      let overflowEl = area.nextElementSibling;
+      if (overflowEl && overflowEl.classList.contains('overflow-label')) {
+        overflowEl.remove();
+      }
+      if (overflow > 0) {
+        const label = document.createElement('div');
+        label.className = 'overflow-label';
+        label.textContent = '+' + overflow + ' more';
+        area.insertAdjacentElement('afterend', label);
+      }
+
+      // Empty label
+      let emptyEl = area.querySelector('.empty-label');
+      if (count === 0) {
+        if (!emptyEl) {
+          emptyEl = document.createElement('div');
+          emptyEl.className = 'empty-label';
+          emptyEl.textContent = 'empty';
+          area.appendChild(emptyEl);
+        }
+      } else {
+        if (emptyEl) emptyEl.remove();
+      }
+    }
+
+    function popPocket(id) {
+      const el = document.getElementById('pocket-' + id);
+      el.classList.add('pop');
+      setTimeout(() => el.classList.remove('pop'), 150);
+    }
+
+    function render(changedPocket) {
+      renderPocket('happy', state.happy, changedPocket === 'happy-add');
+      renderPocket('sad', state.sad, changedPocket === 'sad-add');
+    }
+
+    function goodHappened() {
+      if (state.sad > 0) {
+        state.sad--;
+        state.happy++;
+        popPocket('happy');
+        render('happy-add');
+      } else {
+        state.happy++;
+        popPocket('happy');
+        render('happy-add');
+      }
+      save();
+    }
+
+    function badHappened() {
+      if (state.happy > 0) {
+        state.happy--;
+        state.sad++;
+        popPocket('sad');
+        render('sad-add');
+      } else {
+        state.sad++;
+        popPocket('sad');
+        render('sad-add');
+      }
+      save();
+    }
+
+    document.getElementById('btn-good').addEventListener('click', goodHappened);
+    document.getElementById('btn-bad').addEventListener('click', badHappened);
+
+    load();
+    render(null);
+  </script>
+</body>
+</html>
