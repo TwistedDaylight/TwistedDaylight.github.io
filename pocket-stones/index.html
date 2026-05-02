@@ -477,6 +477,28 @@
     ];
 
     // ─────────────────────────────────────────
+    // TODO: "Positive-only" mode (second app mode, selectable in settings)
+    //
+    // Concept: no sad-stone tracking — for users who find the bad-things
+    // counter depressing. Instead:
+    //
+    //   - The right pocket becomes a "neutral/reserve" pocket, pre-populated
+    //     at the start of each day with a configurable goal count (e.g. 10).
+    //     The goal is set in a settings panel (stored in localStorage).
+    //
+    //   - "Good thing happened" moves one stone from the neutral pocket into
+    //     the happy pocket. Stones never move back — only forward.
+    //
+    //   - The neutral count gives a natural daily goal feel:
+    //     "3 happy out of 10" → try to fill the happy pocket by end of day.
+    //
+    //   - The "Bad thing happened" button becomes "Scavenge for stones" — if
+    //     the neutral pocket runs out it adds 2–6 random neutral stones back,
+    //     so the user is never stuck.
+    //
+    //   - Mode toggle lives in settings alongside the daily-goal count.
+    //     State needs a `mode: 'classic' | 'positive'` field.
+    // ─────────────────────────────────────────
     const STORAGE_KEY = 'pocket-stones';
     const STONE_MAX   = 36;
     const RESET_HOUR  = 3; // "day" starts at 3am
