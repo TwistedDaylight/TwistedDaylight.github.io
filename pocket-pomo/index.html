@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Focus Friend" />
-  <meta name="theme-color" content="#FFB347" />
-  <title>Focus Friend</title>
+  <meta name="apple-mobile-web-app-title" content="Pocket Pomo" />
+  <meta name="theme-color" content="#D94E37" />
+  <title>Pocket Pomo</title>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet" />
   <style>
     /* ── VARIABLES (kid theme defaults) ───────────────── */
@@ -598,8 +598,8 @@
     </div>
 
     <div class="app-header">
-      <div class="app-emoji">🌟</div>
-      <h1 class="app-title">Focus Friend</h1>
+      <div class="app-emoji">🍅</div>
+      <h1 class="app-title">Pocket Pomo</h1>
       <div class="streak-badge">
         <span class="streak-fire">🔥</span>
         <span class="streak-num" id="streak-num">0</span>
@@ -738,13 +738,14 @@ const TIMER_CIRC = 722.57;   // 2π × 115
 const BREAK_CIRC = 326.73;   // 2π × 52
 const RESET_HOUR = 3;        // day boundary
 
-const STORAGE_KEYS  = { kid: 'ff-data-kid', adult: 'ff-data-adult' };
-const ACTIVE_USER_KEY = 'ff-active-user';
+const STORAGE_KEYS  = { kid: 'pp-data-kid', adult: 'pp-data-adult' };
+const ACTIVE_USER_KEY = 'pp-active-user';
 
 const TIMER_OPTIONS = [
-  { label: '5 min ⚡',  value:  5 * 60 },
-  { label: '7 min 🌟',  value:  7 * 60 },
-  { label: '15 min 🔥', value: 15 * 60 },
+  { label: '5 min ⚡',   value:  5 * 60, breakSecs:  60 },
+  { label: '7 min 🌟',   value:  7 * 60, breakSecs:  60 },
+  { label: '15 min 🔥',  value: 15 * 60, breakSecs:  60 },
+  { label: '25 min 🍅',  value: 25 * 60, breakSecs: 5 * 60 },
 ];
 
 const BREAKS = [
@@ -968,7 +969,11 @@ function buildTimerPicker() {
     const btn = document.createElement('button');
     btn.className = 'timer-option-btn' + (state.timerDuration === opt.value ? ' active' : '');
     btn.textContent = opt.label;
-    btn.onclick = () => { state.timerDuration = opt.value; buildTimerPicker(); };
+    btn.onclick = () => {
+      state.timerDuration = opt.value;
+      state.breakDuration = opt.breakSecs;
+      buildTimerPicker();
+    };
     container.appendChild(btn);
   });
 }
@@ -1142,6 +1147,11 @@ function endSession() {
 /* ═══════════════════════════════════════════════════════
    BREAK TIMER
 ═══════════════════════════════════════════════════════ */
+function formatBreakTime(secs) {
+  if (secs < 60) return `${secs}`;
+  return `${Math.floor(secs / 60)}:${(secs % 60).toString().padStart(2, '0')}`;
+}
+
 function startBreakTimer() {
   const b = BREAKS[state.currentBreakIndex % BREAKS.length];
   state.currentBreakIndex++;
@@ -1154,14 +1164,14 @@ function startBreakTimer() {
   const ring = document.getElementById('break-fill-ring');
   ring.style.strokeDasharray  = BREAK_CIRC;
   ring.style.strokeDashoffset = '0';
-  document.getElementById('break-timer-num').textContent = state.breakRemaining;
+  document.getElementById('break-timer-num').textContent = formatBreakTime(state.breakRemaining);
 
   clearInterval(state.breakInterval);
   state.breakInterval = setInterval(() => {
     state.breakRemaining--;
     const pct = state.breakRemaining / state.breakDuration;
     ring.style.strokeDashoffset = BREAK_CIRC * (1 - pct);
-    document.getElementById('break-timer-num').textContent = state.breakRemaining;
+    document.getElementById('break-timer-num').textContent = formatBreakTime(state.breakRemaining);
     if (state.breakRemaining <= 0) { clearInterval(state.breakInterval); endBreak(); }
   }, 1000);
 }
