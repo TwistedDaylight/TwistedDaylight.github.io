@@ -10,7 +10,7 @@
   <title>Focus Friend</title>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet" />
   <style>
-    /* ── VARIABLES ─────────────────────────────────────── */
+    /* ── VARIABLES (kid theme defaults) ───────────────── */
     :root {
       --sun:       #FFD32A;
       --tangerine: #FF8C00;
@@ -26,6 +26,67 @@
       --tap-min:   56px;
       --radius-card: 28px;
       --radius-btn:  20px;
+    }
+
+    /* ── ADULT THEME OVERRIDES ────────────────────────── */
+    body.adult-theme {
+      --tangerine: #4A6CF7;
+      --sun:       #F59E0B;
+      --coral:     #EF4444;
+      --mint:      #10B981;
+      --sky:       #6366F1;
+      --lavender:  #7C3AED;
+      --cream:     #F5F3EF;
+      --warm-white:#FFFFFF;
+      --dark-text: #1A202C;
+      --muted:     #64748B;
+      --shadow:    rgba(0,0,0,0.10);
+      --radius-card: 20px;
+      --radius-btn:  14px;
+    }
+    body.adult-theme .streak-badge {
+      background: linear-gradient(135deg, #4A6CF7, #7C3AED);
+      box-shadow: 0 4px 14px rgba(74,108,247,0.30);
+    }
+    body.adult-theme .big-start-btn {
+      background: linear-gradient(135deg, #4A6CF7, #3730A3);
+      box-shadow: 0 6px 20px rgba(74,108,247,0.35);
+    }
+    body.adult-theme .add-item-btn {
+      background: #4A6CF7;
+      box-shadow: 0 4px 12px rgba(74,108,247,0.28);
+    }
+    body.adult-theme #screen-break {
+      background: linear-gradient(160deg, #312E81 0%, #4F46E5 100%);
+    }
+    body.adult-theme #screen-celebrate {
+      background: linear-gradient(160deg, #1E1B4B 0%, #6D28D9 100%);
+    }
+    body.adult-theme .skip-break-btn {
+      background: linear-gradient(135deg, #10B981, #059669);
+      box-shadow: 0 4px 14px rgba(16,185,129,0.35);
+    }
+    body.adult-theme .modal-btn-primary {
+      background: linear-gradient(135deg, #4A6CF7, #3730A3);
+      box-shadow: 0 4px 12px rgba(74,108,247,0.30);
+    }
+    /* Remove Fredoka One for adult — Nunito 900 throughout */
+    body.adult-theme .app-title,
+    body.adult-theme .timer-num,
+    body.adult-theme .focus-stars,
+    body.adult-theme .break-header,
+    body.adult-theme .break-activity-name,
+    body.adult-theme .break-timer-num,
+    body.adult-theme .celebrate-title,
+    body.adult-theme .big-start-btn,
+    body.adult-theme .skip-break-btn,
+    body.adult-theme .done-today-btn,
+    body.adult-theme .modal-title,
+    body.adult-theme .modal-btn,
+    body.adult-theme .timer-option-btn,
+    body.adult-theme .streak-num {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
     }
 
     /* ── RESET ─────────────────────────────────────────── */
@@ -55,10 +116,37 @@
       flex-direction: column;
       align-items: center;
       padding: 20px 16px 36px;
-      gap: 16px;
+      gap: 14px;
       overflow-x: hidden;
     }
     .screen.active { display: flex; }
+
+    /* ── USER SWITCHER ─────────────────────────────────── */
+    .user-switcher {
+      display: flex;
+      gap: 5px;
+      background: rgba(0,0,0,0.06);
+      border-radius: 13px;
+      padding: 4px;
+      width: fit-content;
+    }
+    .user-btn {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 0.82rem;
+      padding: 6px 14px;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--muted);
+      min-height: 34px;
+      transition: all 0.15s;
+    }
+    .user-btn:active { transform: scale(0.95); }
+    .user-btn.active {
+      background: white;
+      color: var(--dark-text);
+      box-shadow: 0 2px 7px rgba(0,0,0,0.10);
+    }
 
     /* ── HOME SCREEN ───────────────────────────────────── */
     .app-header {
@@ -67,7 +155,6 @@
       gap: 10px;
       width: 100%;
       max-width: 420px;
-      margin-bottom: 4px;
     }
     .app-emoji { font-size: 2.2rem; }
     .app-title {
@@ -83,7 +170,7 @@
       display: flex;
       align-items: center;
       gap: 5px;
-      box-shadow: 0 4px 14px rgba(255,140,0,0.3);
+      box-shadow: 0 4px 14px rgba(255,140,0,0.30);
       flex-shrink: 0;
     }
     .streak-fire { font-size: 1.1rem; }
@@ -95,7 +182,7 @@
     .streak-label {
       font-size: 0.8rem;
       font-weight: 700;
-      color: rgba(255,255,255,0.9);
+      color: rgba(255,255,255,0.90);
     }
 
     .stars-display {
@@ -105,7 +192,7 @@
       align-items: center;
       justify-content: center;
       min-height: 36px;
-      padding: 4px 8px;
+      padding: 6px 10px;
       background: white;
       border-radius: 16px;
       width: 100%;
@@ -113,18 +200,10 @@
       box-shadow: 0 2px 8px var(--shadow);
     }
     .star { font-size: 1.4rem; }
-    .star-overflow {
-      font-family: 'Fredoka One', sans-serif;
-      font-size: 1rem;
-      color: var(--tangerine);
-    }
-    .stars-empty {
-      font-size: 0.85rem;
-      color: var(--muted);
-      font-weight: 700;
-    }
+    .star-overflow { font-family: 'Fredoka One', sans-serif; font-size: 1rem; color: var(--tangerine); }
+    .stars-empty { font-size: 0.85rem; color: var(--muted); font-weight: 700; }
 
-    /* Checklist card */
+    /* Checklist */
     .checklist-card {
       background: white;
       border-radius: var(--radius-card);
@@ -139,6 +218,7 @@
       color: var(--dark-text);
       margin-bottom: 14px;
     }
+    body.adult-theme .checklist-title { font-family: 'Nunito', sans-serif; font-weight: 900; }
     .checklist-items { display: flex; flex-direction: column; gap: 8px; }
     .checklist-item {
       display: flex;
@@ -151,7 +231,6 @@
       min-height: var(--tap-min);
       cursor: pointer;
       transition: border-color 0.15s, background 0.15s, opacity 0.15s;
-      position: relative;
     }
     .checklist-item:not(.done):hover { border-color: var(--sun); }
     .checklist-item.done {
@@ -177,12 +256,7 @@
       border-color: var(--mint);
       color: white;
     }
-    .checklist-text {
-      flex: 1;
-      font-size: 1rem;
-      font-weight: 700;
-      line-height: 1.3;
-    }
+    .checklist-text { flex: 1; font-size: 1rem; font-weight: 700; line-height: 1.3; }
     .delete-item-btn {
       width: 30px; height: 30px;
       border-radius: 50%;
@@ -195,13 +269,7 @@
       justify-content: center;
       flex-shrink: 0;
     }
-    .delete-item-btn:active { transform: scale(0.88); }
-
-    .add-item-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
-    }
+    .add-item-row { display: flex; gap: 8px; margin-top: 12px; }
     .add-item-input {
       flex: 1;
       padding: 12px 14px;
@@ -228,37 +296,23 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      box-shadow: 0 4px 12px rgba(255,140,0,0.3);
+      box-shadow: 0 4px 12px rgba(255,140,0,0.30);
     }
 
     /* Timer picker */
-    .timer-picker {
-      width: 100%;
-      max-width: 420px;
-    }
-    .picker-label {
-      font-weight: 900;
-      font-size: 0.95rem;
-      color: var(--muted);
-      margin-bottom: 10px;
-      text-align: center;
-    }
-    .picker-options {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-    }
+    .timer-picker { width: 100%; max-width: 420px; }
+    .picker-label { font-weight: 900; font-size: 0.95rem; color: var(--muted); margin-bottom: 10px; text-align: center; }
+    .picker-options { display: flex; gap: 10px; justify-content: center; }
     .timer-option-btn {
       font-family: 'Fredoka One', sans-serif;
       font-size: 1rem;
-      padding: 12px 18px;
+      padding: 12px 14px;
       border-radius: 16px;
       border: 3px solid #E0D8CC;
       background: white;
       color: var(--dark-text);
       min-height: 52px;
       flex: 1;
-      max-width: 120px;
     }
     .timer-option-btn.active {
       border-color: var(--tangerine);
@@ -266,8 +320,9 @@
       color: var(--tangerine);
       transform: scale(1.05);
     }
+    body.adult-theme .timer-option-btn.active { background: #EEF2FF; }
 
-    /* Big start button */
+    /* Buttons */
     .big-start-btn {
       font-family: 'Fredoka One', sans-serif;
       font-size: 1.4rem;
@@ -278,14 +333,9 @@
       min-height: 68px;
       width: 100%;
       max-width: 420px;
-      box-shadow: 0 6px 20px rgba(255,140,0,0.4);
+      box-shadow: 0 6px 20px rgba(255,140,0,0.40);
     }
-    .big-start-btn:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
+    .big-start-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
     .sound-toggle {
       font-size: 0.9rem;
       font-weight: 700;
@@ -297,11 +347,7 @@
     }
 
     /* ── FOCUS SCREEN ──────────────────────────────────── */
-    #screen-focus {
-      background: var(--cream);
-      justify-content: space-between;
-      padding-top: 16px;
-    }
+    #screen-focus { background: var(--cream); justify-content: space-between; padding-top: 16px; }
     .focus-header {
       display: flex;
       justify-content: space-between;
@@ -326,21 +372,11 @@
       padding: 8px 16px;
       border-radius: 20px;
       box-shadow: 0 3px 12px var(--shadow);
-      color: var(--dark-text);
     }
 
-    /* SVG timer ring */
-    .timer-ring-wrap {
-      position: relative;
-      width: 260px; height: 260px;
-      flex-shrink: 0;
-    }
+    .timer-ring-wrap { position: relative; width: 260px; height: 260px; flex-shrink: 0; }
     .timer-svg { display: block; }
-    .timer-bg-ring {
-      fill: none;
-      stroke: #EDE0CC;
-      stroke-width: 18;
-    }
+    .timer-bg-ring   { fill: none; stroke: #EDE0CC; stroke-width: 18; }
     .timer-fill-ring {
       fill: none;
       stroke: var(--mint);
@@ -351,12 +387,9 @@
       transition: stroke-dashoffset 0.85s linear, stroke 0.5s ease;
     }
     .timer-center {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
       gap: 4px;
     }
     .timer-num {
@@ -365,24 +398,20 @@
       color: var(--dark-text);
       line-height: 1;
     }
-    .timer-lbl {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--muted);
-    }
+    .timer-lbl { font-size: 0.85rem; font-weight: 700; color: var(--muted); }
 
     .current-task {
       font-family: 'Fredoka One', sans-serif;
-      font-size: 1.15rem;
+      font-size: 1.1rem;
       color: var(--dark-text);
       text-align: center;
       background: white;
       padding: 12px 20px;
       border-radius: 16px;
-      width: 100%;
-      max-width: 380px;
+      width: 100%; max-width: 380px;
       box-shadow: 0 2px 8px var(--shadow);
     }
+    body.adult-theme .current-task { font-family: 'Nunito', sans-serif; font-weight: 700; }
     .encourage-row {
       font-family: 'Fredoka One', sans-serif;
       font-size: 1.3rem;
@@ -391,6 +420,7 @@
       min-height: 2rem;
       transition: opacity 0.4s;
     }
+    body.adult-theme .encourage-row { font-family: 'Nunito', sans-serif; font-weight: 900; }
     .home-btn {
       font-size: 0.95rem;
       font-weight: 700;
@@ -411,69 +441,26 @@
       background: white;
       border-radius: 32px;
       padding: 32px 24px 28px;
-      max-width: 400px;
-      width: 100%;
+      max-width: 400px; width: 100%;
       text-align: center;
       box-shadow: 0 16px 50px rgba(0,0,0,0.18);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
     }
-    .break-header {
-      font-family: 'Fredoka One', sans-serif;
-      font-size: 1.4rem;
-      color: var(--sky);
-    }
-    .break-activity-emoji {
-      font-size: 90px;
-      line-height: 1;
-      animation: bounce 1.1s infinite;
-    }
-    .break-activity-name {
-      font-family: 'Fredoka One', sans-serif;
-      font-size: 1.6rem;
-      color: var(--dark-text);
-    }
-    .break-activity-desc {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--muted);
-      line-height: 1.4;
-    }
-
-    .break-ring-wrap {
-      position: relative;
-      width: 130px; height: 130px;
-      flex-shrink: 0;
-    }
-    .break-bg-ring {
-      fill: none;
-      stroke: #E8F8FF;
-      stroke-width: 14;
-    }
+    .break-header { font-family: 'Fredoka One', sans-serif; font-size: 1.4rem; color: var(--sky); }
+    .break-activity-emoji { font-size: 90px; line-height: 1; animation: bounce 1.1s infinite; }
+    .break-activity-name { font-family: 'Fredoka One', sans-serif; font-size: 1.6rem; color: var(--dark-text); }
+    .break-activity-desc { font-size: 1rem; font-weight: 700; color: var(--muted); line-height: 1.4; }
+    .break-ring-wrap { position: relative; width: 130px; height: 130px; flex-shrink: 0; }
+    .break-bg-ring   { fill: none; stroke: #E8F8FF; stroke-width: 14; }
     .break-fill-ring {
-      fill: none;
-      stroke: var(--sky);
-      stroke-width: 14;
-      stroke-linecap: round;
-      transform-origin: 65px 65px;
-      transform: rotate(-90deg);
+      fill: none; stroke: var(--sky); stroke-width: 14; stroke-linecap: round;
+      transform-origin: 65px 65px; transform: rotate(-90deg);
       transition: stroke-dashoffset 0.85s linear;
     }
-    .break-timer-center {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .break-timer-num {
-      font-family: 'Fredoka One', sans-serif;
-      font-size: 2rem;
-      color: var(--sky);
-    }
-
+    body.adult-theme .break-fill-ring { stroke: #818CF8; }
+    .break-timer-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+    .break-timer-num { font-family: 'Fredoka One', sans-serif; font-size: 2rem; color: var(--sky); }
+    body.adult-theme .break-timer-num { color: #818CF8; }
     .skip-break-btn {
       font-family: 'Fredoka One', sans-serif;
       font-size: 1.2rem;
@@ -496,49 +483,18 @@
       background: white;
       border-radius: 32px;
       padding: 36px 24px 32px;
-      max-width: 400px;
-      width: 100%;
+      max-width: 400px; width: 100%;
       text-align: center;
-      box-shadow: 0 16px 50px rgba(0,0,0,0.2);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 14px;
+      box-shadow: 0 16px 50px rgba(0,0,0,0.20);
+      display: flex; flex-direction: column; align-items: center; gap: 14px;
     }
-    .celebrate-emoji {
-      font-size: 96px;
-      line-height: 1;
-      display: block;
-      animation: bounceScale 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
-    }
-    .celebrate-title {
-      font-family: 'Fredoka One', sans-serif;
-      font-size: 2rem;
-      color: var(--tangerine);
-    }
-    .celebrate-subtitle {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--muted);
-      line-height: 1.4;
-    }
-    .celebrate-big-stars {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      justify-content: center;
-      font-size: 2rem;
-      min-height: 2.5rem;
-    }
-    .celebrate-star {
-      display: inline-block;
-      animation: starPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
-    }
-    .total-stars-row {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: var(--muted);
-    }
+    .celebrate-emoji { font-size: 96px; line-height: 1; display: block; animation: bounceScale 0.6s cubic-bezier(0.34,1.56,0.64,1) both; }
+    .celebrate-title { font-family: 'Fredoka One', sans-serif; font-size: 2rem; color: var(--tangerine); }
+    body.adult-theme .celebrate-title { font-family: 'Nunito', sans-serif; font-weight: 900; }
+    .celebrate-subtitle { font-size: 1rem; font-weight: 700; color: var(--muted); line-height: 1.4; }
+    .celebrate-big-stars { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; font-size: 2rem; min-height: 2.5rem; }
+    .celebrate-star { display: inline-block; animation: starPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
+    .total-stars-row { font-size: 0.95rem; font-weight: 700; color: var(--muted); }
     .done-today-btn {
       font-family: 'Fredoka One', sans-serif;
       font-size: 1.1rem;
@@ -549,6 +505,60 @@
       padding: 14px 24px;
       min-height: 56px;
       width: 100%;
+    }
+
+    /* ── DAILY RESET MODAL ─────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(45,27,0,0.45);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 900;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease;
+    }
+    .modal-overlay.show { opacity: 1; pointer-events: all; }
+    body.adult-theme .modal-overlay { background: rgba(15,23,42,0.55); }
+    .modal-box {
+      background: white;
+      border-radius: 24px;
+      padding: 28px 24px 24px;
+      max-width: 340px; width: 100%;
+      box-shadow: 0 16px 50px rgba(0,0,0,0.22);
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      transform: translateY(14px) scale(0.96);
+      transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .modal-overlay.show .modal-box { transform: translateY(0) scale(1); }
+    .modal-emoji { font-size: 3rem; }
+    .modal-title {
+      font-family: 'Fredoka One', sans-serif;
+      font-size: 1.4rem;
+      color: var(--tangerine);
+      text-align: center;
+    }
+    .modal-body { font-size: 0.95rem; font-weight: 700; color: var(--muted); text-align: center; line-height: 1.55; }
+    .modal-stars { font-size: 1.05rem; font-weight: 900; color: var(--dark-text); margin-top: 2px; }
+    .modal-actions { display: flex; gap: 10px; width: 100%; margin-top: 6px; }
+    .modal-btn {
+      flex: 1;
+      padding: 14px 10px;
+      border-radius: 14px;
+      font-family: 'Fredoka One', sans-serif;
+      font-size: 1rem;
+      min-height: 52px;
+    }
+    .modal-btn-secondary { background: #F0EBE0; color: var(--dark-text); }
+    .modal-btn-primary {
+      background: linear-gradient(135deg, var(--tangerine), #FF6000);
+      color: white;
+      box-shadow: 0 4px 12px rgba(255,140,0,0.30);
     }
 
     /* ── ANIMATIONS ────────────────────────────────────── */
@@ -565,13 +575,8 @@
       60%  { transform: scale(1.4) rotate(10deg); opacity: 1; }
       100% { transform: scale(1) rotate(0deg); opacity: 1; }
     }
-    @keyframes wiggle {
-      0%, 100% { transform: rotate(0); }
-      25%       { transform: rotate(-12deg); }
-      75%       { transform: rotate(12deg); }
-    }
     @keyframes confettiFall {
-      0%   { transform: translateY(-30px) rotate(0deg);   opacity: 1; }
+      0%   { transform: translateY(-30px) rotate(0deg);    opacity: 1; }
       100% { transform: translateY(110vh)  rotate(720deg); opacity: 0; }
     }
     .confetti-piece {
@@ -586,6 +591,11 @@
 
   <!-- ══ HOME SCREEN ══════════════════════════════════════ -->
   <div id="screen-home" class="screen active">
+
+    <div class="user-switcher">
+      <button class="user-btn active" id="btn-kid"   onclick="switchToUser('kid')">👧 Kid</button>
+      <button class="user-btn"        id="btn-adult" onclick="switchToUser('adult')">🧑 Adult</button>
+    </div>
 
     <div class="app-header">
       <div class="app-emoji">🌟</div>
@@ -605,13 +615,8 @@
       <div class="checklist-title">📚 Today's Homework</div>
       <div class="checklist-items" id="checklist-items"></div>
       <div class="add-item-row">
-        <input
-          type="text"
-          id="new-item-input"
-          class="add-item-input"
-          placeholder="Add homework..."
-          maxlength="50"
-        />
+        <input type="text" id="new-item-input" class="add-item-input"
+               placeholder="Add homework..." maxlength="50" />
         <button class="add-item-btn" onclick="addChecklistItem()">＋</button>
       </div>
     </div>
@@ -666,8 +671,8 @@
     <div class="break-card">
       <div class="break-header">⏸️ Movement Break!</div>
       <div class="break-activity-emoji" id="break-emoji">🦘</div>
-      <div class="break-activity-name" id="break-activity">Jump Around!</div>
-      <div class="break-activity-desc" id="break-desc">Do 10 big jumps!</div>
+      <div class="break-activity-name"  id="break-activity">Jump Around!</div>
+      <div class="break-activity-desc"  id="break-desc">Do 10 big jumps!</div>
 
       <div class="break-ring-wrap">
         <svg class="timer-svg" width="130" height="130" viewBox="0 0 130 130" aria-hidden="true">
@@ -691,11 +696,11 @@
   <div id="screen-celebrate" class="screen">
 
     <div class="celebrate-card">
-      <div class="celebrate-emoji" id="celebrate-emoji">🎉</div>
-      <div class="celebrate-title" id="celebrate-title">Amazing Job!</div>
-      <div class="celebrate-subtitle" id="celebrate-subtitle">You finished your homework!</div>
+      <div class="celebrate-emoji"     id="celebrate-emoji">🎉</div>
+      <div class="celebrate-title"     id="celebrate-title">Amazing Job!</div>
+      <div class="celebrate-subtitle"  id="celebrate-subtitle">You finished your homework!</div>
       <div class="celebrate-big-stars" id="celebrate-big-stars"></div>
-      <div class="total-stars-row" id="total-stars-row">Total stars today: ⭐0</div>
+      <div class="total-stars-row"     id="total-stars-row">Total stars today: ⭐ 0</div>
       <button class="big-start-btn" onclick="showScreen('home')" style="margin-top:6px;">
         More Homework! 📚
       </button>
@@ -706,44 +711,65 @@
 
   </div><!-- /screen-celebrate -->
 
+  <!-- ══ DAILY RESET MODAL ════════════════════════════════ -->
+  <div class="modal-overlay" id="reset-modal">
+    <div class="modal-box">
+      <div class="modal-emoji">🌅</div>
+      <div class="modal-title">Good morning!</div>
+      <div class="modal-body">
+        Yesterday you earned<br>
+        <div class="modal-stars" id="modal-stars">⭐ 0 stars</div>
+      </div>
+      <div class="modal-body" style="font-size:0.85rem;margin-top:2px;">
+        Your tasks have been cleared for today.<br>Start fresh with stars too?
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-secondary" onclick="doReset(false)">Keep Stars ⭐</button>
+        <button class="modal-btn modal-btn-primary"   onclick="doReset(true)">Start Fresh</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 /* ═══════════════════════════════════════════════════════
-   STATE
+   CONSTANTS
 ═══════════════════════════════════════════════════════ */
-const TIMER_CIRC = 722.57;  // 2 * π * 115
-const BREAK_CIRC = 326.73;  // 2 * π * 52
+const TIMER_CIRC = 722.57;   // 2π × 115
+const BREAK_CIRC = 326.73;   // 2π × 52
+const RESET_HOUR = 3;        // day boundary
+
+const STORAGE_KEYS  = { kid: 'ff-data-kid', adult: 'ff-data-adult' };
+const ACTIVE_USER_KEY = 'ff-active-user';
 
 const TIMER_OPTIONS = [
-  { label: '5 min ⚡', value: 5 * 60 },
-  { label: '7 min 🌟', value: 7 * 60 },
-  { label: '10 min 🔥', value: 10 * 60 },
+  { label: '5 min ⚡',  value:  5 * 60 },
+  { label: '7 min 🌟',  value:  7 * 60 },
+  { label: '15 min 🔥', value: 15 * 60 },
 ];
 
 const BREAKS = [
-  { emoji: '🦘', name: 'Jumping Jacks!',  desc: 'Do 10 jumping jacks — arms and legs wide!' },
-  { emoji: '💃', name: 'Dance Freeze!',   desc: 'Dance to 3 beats, then FREEZE like a statue!' },
-  { emoji: '🐻', name: 'Bear Walk!',      desc: 'Walk on hands and feet to the wall and back!' },
-  { emoji: '⭐', name: 'Star Jumps!',     desc: 'Jump up making a big star shape — do 10!' },
-  { emoji: '🏋️', name: 'Wall Push-Ups!', desc: 'Do 8 push-ups against the wall!' },
-  { emoji: '🐸', name: 'Frog Jumps!',    desc: 'Squat down low and jump up HIGH — 8 times!' },
-  { emoji: '🧘', name: 'Big Breaths!',   desc: '5 huge breaths — in through nose, out through mouth!' },
-  { emoji: '🌪️', name: 'Spin Around!',   desc: 'Spin 5 times one way, then 5 the other way!' },
+  { emoji: '🦘',  name: 'Jumping Jacks!',  desc: 'Do 10 jumping jacks — arms and legs wide!' },
+  { emoji: '💃',  name: 'Dance Freeze!',   desc: 'Dance to 3 beats, then FREEZE like a statue!' },
+  { emoji: '🐻',  name: 'Bear Walk!',      desc: 'Walk on hands and feet to the wall and back!' },
+  { emoji: '⭐',  name: 'Star Jumps!',     desc: 'Jump up making a big star shape — do 10!' },
+  { emoji: '🏋️', name: 'Wall Push-Ups!',  desc: 'Do 8 push-ups against the wall!' },
+  { emoji: '🐸',  name: 'Frog Jumps!',    desc: 'Squat down low and jump up HIGH — 8 times!' },
+  { emoji: '🧘',  name: 'Big Breaths!',   desc: '5 huge breaths — in through nose, out through mouth!' },
+  { emoji: '🌪️', name: 'Spin Around!',   desc: 'Spin 5 times one way, then 5 the other!' },
 ];
 
 const ENCOURAGEMENTS = [
-  'You can do it! 🌟',
-  'Super focused! 💪',
-  'Brain power! 🧠',
-  'Almost there! ⭐',
-  'You\'re amazing! 🎉',
-  'Keep going! 🚀',
-  'So smart! 📚',
-  'You\'ve got this! 🦁',
-  'Incredible! ✨',
+  'You can do it! 🌟', 'Super focused! 💪', 'Brain power! 🧠',
+  'Almost there! ⭐',  'You\'re amazing! 🎉', 'Keep going! 🚀',
+  'So smart! 📚',      'You\'ve got this! 🦁', 'Incredible! ✨',
   'Star student! 🌠',
 ];
 
+/* ═══════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════ */
 const state = {
+  currentUser:      'kid',
   timerDuration:    5 * 60,
   breakDuration:    60,
   timerRemaining:   0,
@@ -755,7 +781,6 @@ const state = {
   currentBreakIndex: 0,
   encourageIndex:   0,
   starsToday:       0,
-  lastStarDate:     null,
   items:            [],
   soundEnabled:     false,
   audioCtx:         null,
@@ -763,60 +788,134 @@ const state = {
   noiseSource:      null,
   streak:           0,
   lastActiveDate:   null,
+  lastDay:          null,         // 3am day-boundary key
+  _pendingNewDay:   null,
+  _focusTaskLabel:  null,
+  _celebrateTask:   null,
 };
 
 /* ═══════════════════════════════════════════════════════
-   PERSISTENCE
+   DAY-BOUNDARY HELPERS
 ═══════════════════════════════════════════════════════ */
-function today() {
+function getDayKey(date) {
+  const d = new Date(date.getTime() - RESET_HOUR * 3600 * 1000);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+function calendarToday() {
   return new Date().toISOString().slice(0, 10);
 }
-function yesterday() {
+function calendarYesterday() {
   const d = new Date();
   d.setDate(d.getDate() - 1);
   return d.toISOString().slice(0, 10);
 }
 
+/* ═══════════════════════════════════════════════════════
+   PERSISTENCE
+═══════════════════════════════════════════════════════ */
+function getStorageKey() {
+  return STORAGE_KEYS[state.currentUser] || STORAGE_KEYS.kid;
+}
+
 function loadData() {
   try {
-    const raw = localStorage.getItem('ff-data');
+    const raw = localStorage.getItem(getStorageKey());
     if (raw) return JSON.parse(raw);
   } catch(e) {}
-  return { streak: 0, lastActiveDate: null, starsToday: 0, lastStarDate: null, items: [] };
+  return { streak: 0, lastActiveDate: null, starsToday: 0, items: [], lastDay: null };
 }
 
 function saveData() {
   try {
-    localStorage.setItem('ff-data', JSON.stringify({
+    localStorage.setItem(getStorageKey(), JSON.stringify({
       streak:         state.streak,
       lastActiveDate: state.lastActiveDate,
       starsToday:     state.starsToday,
-      lastStarDate:   state.lastStarDate,
       items:          state.items,
+      lastDay:        state.lastDay,
     }));
   } catch(e) {}
 }
 
 function initFromStorage() {
   const saved = loadData();
-  const t = today();
+  state.items           = saved.items || [];
+  state.starsToday      = saved.starsToday || 0;
+  state.streak          = saved.streak || 0;
+  state.lastActiveDate  = saved.lastActiveDate || null;
+  state.lastDay         = saved.lastDay || null;
+}
 
-  // Restore items
-  state.items = saved.items || [];
-
-  // Restore daily stars (reset if new day)
-  if (saved.lastStarDate === t) {
-    state.starsToday  = saved.starsToday || 0;
-    state.lastStarDate = t;
-  } else {
-    state.starsToday  = 0;
-    state.lastStarDate = null;
+/* ═══════════════════════════════════════════════════════
+   DAILY RESET (3am boundary)
+═══════════════════════════════════════════════════════ */
+function checkDailyReset() {
+  const today = getDayKey(new Date());
+  if (!state.lastDay) {
+    state.lastDay = today;
+    saveData();
+    return;
   }
+  if (state.lastDay === today) return;
+  // Day has rolled over — show modal
+  state._pendingNewDay = today;
+  showResetModal();
+}
 
-  // Restore streak
-  state.streak = saved.streak || 0;
-  state.lastActiveDate = saved.lastActiveDate || null;
-  // If last active was before yesterday, streak is broken (but don't reset here — only on new completion)
+function showResetModal() {
+  const n = state.starsToday;
+  document.getElementById('modal-stars').textContent =
+    n > 0 ? `⭐ ${n} star${n !== 1 ? 's' : ''}` : 'No stars yet';
+  document.getElementById('reset-modal').classList.add('show');
+}
+
+function hideResetModal() {
+  document.getElementById('reset-modal').classList.remove('show');
+}
+
+function doReset(startFresh) {
+  hideResetModal();
+  state.items   = [];                         // always clear tasks
+  state.lastDay = state._pendingNewDay;
+  if (startFresh) state.starsToday = 0;
+  saveData();
+  renderChecklist();
+  renderStarsDisplay();
+}
+
+// Poll once per minute; also fire on tab focus
+let _lastPolledDay = getDayKey(new Date());
+function pollDayChange() {
+  if (document.getElementById('reset-modal').classList.contains('show')) return;
+  const today = getDayKey(new Date());
+  if (today !== _lastPolledDay) {
+    _lastPolledDay = today;
+    checkDailyReset();
+  }
+}
+setInterval(pollDayChange, 60 * 1000);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) pollDayChange();
+});
+
+/* ═══════════════════════════════════════════════════════
+   USER SWITCHING
+═══════════════════════════════════════════════════════ */
+function switchToUser(name) {
+  if (state.currentUser === name) return;
+  saveData();                              // save current user before switching
+  state.currentUser = name;
+  localStorage.setItem(ACTIVE_USER_KEY, name);
+  state.timerDuration = 5 * 60;           // reset timer pick to default
+  initFromStorage();
+  applyTheme();
+  onEnterHome();
+}
+
+function applyTheme() {
+  document.body.classList.toggle('adult-theme', state.currentUser === 'adult');
+  document.getElementById('btn-kid').classList.toggle('active',   state.currentUser === 'kid');
+  document.getElementById('btn-adult').classList.toggle('active', state.currentUser === 'adult');
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -835,13 +934,12 @@ function showScreen(name) {
    HOME SCREEN
 ═══════════════════════════════════════════════════════ */
 function onEnterHome() {
+  // Check 3am reset on every home-screen entry
+  checkDailyReset();
   renderStreakBadge();
   renderStarsDisplay();
   renderChecklist();
   buildTimerPicker();
-  updateStartButton();
-  // Reset encouragement index so it starts fresh
-  state.encourageIndex = 0;
 }
 
 function renderStreakBadge() {
@@ -852,15 +950,14 @@ function renderStarsDisplay() {
   const display = document.getElementById('stars-display');
   if (state.starsToday === 0) {
     display.innerHTML = '<span class="stars-empty">Earn stars by doing homework! ⭐</span>';
-    return;
+  } else {
+    const shown = Math.min(state.starsToday, 10);
+    let html = '';
+    for (let i = 0; i < shown; i++) html += '<span class="star">⭐</span>';
+    const overflow = state.starsToday - shown;
+    if (overflow > 0) html += `<span class="star-overflow">+${overflow} more!</span>`;
+    display.innerHTML = html;
   }
-  const shown = Math.min(state.starsToday, 10);
-  let html = '';
-  for (let i = 0; i < shown; i++) html += '<span class="star">⭐</span>';
-  const overflow = state.starsToday - shown;
-  if (overflow > 0) html += `<span class="star-overflow">+${overflow} more!</span>`;
-  display.innerHTML = html;
-  // Also update focus screen counter
   document.getElementById('focus-stars').textContent = `⭐ ${state.starsToday}`;
 }
 
@@ -871,18 +968,9 @@ function buildTimerPicker() {
     const btn = document.createElement('button');
     btn.className = 'timer-option-btn' + (state.timerDuration === opt.value ? ' active' : '');
     btn.textContent = opt.label;
-    btn.onclick = () => {
-      state.timerDuration = opt.value;
-      buildTimerPicker();
-    };
+    btn.onclick = () => { state.timerDuration = opt.value; buildTimerPicker(); };
     container.appendChild(btn);
   });
-}
-
-function updateStartButton() {
-  const btn = document.getElementById('start-btn');
-  // Always allow starting (free focus mode if no items)
-  btn.disabled = false;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -892,7 +980,6 @@ function addChecklistItem() {
   const input = document.getElementById('new-item-input');
   const text  = input.value.trim();
   if (!text) return;
-
   state.items.push({ id: 'item-' + Date.now(), text, done: false });
   input.value = '';
   renderChecklist();
@@ -918,14 +1005,12 @@ function deleteItem(id) {
 function renderChecklist() {
   const container = document.getElementById('checklist-items');
   container.innerHTML = '';
-
   if (state.items.length === 0) {
     container.innerHTML = '<div style="text-align:center;color:#C0B090;font-size:0.9rem;padding:8px 0;">Add your homework above!</div>';
     return;
   }
-
   state.items.forEach(item => {
-    const div = document.createElement('div');
+    const div   = document.createElement('div');
     div.className = 'checklist-item' + (item.done ? ' done' : '');
 
     const check = document.createElement('div');
@@ -947,7 +1032,6 @@ function renderChecklist() {
       div.appendChild(del);
       div.onclick = () => toggleItem(item.id);
     }
-
     container.appendChild(div);
   });
 }
@@ -956,7 +1040,6 @@ function renderChecklist() {
    FOCUS TIMER
 ═══════════════════════════════════════════════════════ */
 function beginFocus() {
-  // Pick the first unchecked item as context, or generic label
   const pending = state.items.find(i => !i.done);
   state._focusTaskLabel = pending ? pending.text : null;
   showScreen('focus');
@@ -973,7 +1056,6 @@ function startFocusTimer() {
   document.getElementById('pause-btn').textContent = '⏸️';
   document.getElementById('focus-stars').textContent = `⭐ ${state.starsToday}`;
 
-  // Show current task context
   const taskEl = document.getElementById('current-task');
   taskEl.textContent = state._focusTaskLabel
     ? `Working on: ${state._focusTaskLabel} 📝`
@@ -987,6 +1069,8 @@ function startFocusTimer() {
   }
 
   clearInterval(state.timerInterval);
+  clearInterval(state.encourageInterval);
+
   state.timerInterval = setInterval(() => {
     if (state.sessionPaused) return;
     state.timerRemaining--;
@@ -996,17 +1080,15 @@ function startFocusTimer() {
     if (state.timerRemaining <= 0) {
       clearInterval(state.timerInterval);
       clearInterval(state.encourageInterval);
-      awardStar(1);
-      if (state.soundEnabled) playChime('complete');
+      awardStar(1, true);
       stopAmbientSound();
+      playCompletionSound();   // always fires regardless of sound toggle
       showScreen('break');
     }
   }, 1000);
 
-  // Encouragement rotation
   state.encourageIndex = 0;
   document.getElementById('encourage-row').textContent = ENCOURAGEMENTS[0];
-  clearInterval(state.encourageInterval);
   state.encourageInterval = setInterval(() => {
     if (state.sessionPaused) return;
     state.encourageIndex = (state.encourageIndex + 1) % ENCOURAGEMENTS.length;
@@ -1029,19 +1111,18 @@ function updateTimerDisplay() {
   const ring = document.getElementById('timer-fill-ring');
   ring.style.strokeDashoffset = TIMER_CIRC * (1 - pct);
 
-  // Update encouragement label near end
   const lbl = document.getElementById('timer-lbl');
-  if (pct <= 0.25) lbl.textContent = 'almost done! 🔥';
-  else if (pct <= 0.5) lbl.textContent = 'halfway there! 💪';
-  else lbl.textContent = 'keep going! 💪';
+  if (pct <= 0.25)      lbl.textContent = 'almost done! 🔥';
+  else if (pct <= 0.5)  lbl.textContent = 'halfway there! 💪';
+  else                  lbl.textContent = 'keep going! 💪';
 }
 
 function updateTimerColor() {
   const pct  = state.timerRemaining / state.timerDuration;
   const ring = document.getElementById('timer-fill-ring');
-  if (pct > 0.5)       ring.style.stroke = '#4CD964';  // green
-  else if (pct > 0.25) ring.style.stroke = '#FFD32A';  // yellow
-  else                 ring.style.stroke = '#FF6B6B';  // coral
+  if (pct > 0.5)       ring.style.stroke = '#4CD964';
+  else if (pct > 0.25) ring.style.stroke = '#FFD32A';
+  else                 ring.style.stroke = '#FF6B6B';
 }
 
 function togglePause() {
@@ -1062,7 +1143,7 @@ function endSession() {
    BREAK TIMER
 ═══════════════════════════════════════════════════════ */
 function startBreakTimer() {
-  const b    = BREAKS[state.currentBreakIndex % BREAKS.length];
+  const b = BREAKS[state.currentBreakIndex % BREAKS.length];
   state.currentBreakIndex++;
 
   document.getElementById('break-emoji').textContent    = b.emoji;
@@ -1070,11 +1151,9 @@ function startBreakTimer() {
   document.getElementById('break-desc').textContent     = b.desc;
 
   state.breakRemaining = state.breakDuration;
-
   const ring = document.getElementById('break-fill-ring');
   ring.style.strokeDasharray  = BREAK_CIRC;
   ring.style.strokeDashoffset = '0';
-
   document.getElementById('break-timer-num').textContent = state.breakRemaining;
 
   clearInterval(state.breakInterval);
@@ -1083,11 +1162,7 @@ function startBreakTimer() {
     const pct = state.breakRemaining / state.breakDuration;
     ring.style.strokeDashoffset = BREAK_CIRC * (1 - pct);
     document.getElementById('break-timer-num').textContent = state.breakRemaining;
-
-    if (state.breakRemaining <= 0) {
-      clearInterval(state.breakInterval);
-      endBreak();
-    }
+    if (state.breakRemaining <= 0) { clearInterval(state.breakInterval); endBreak(); }
   }, 1000);
 }
 
@@ -1101,41 +1176,31 @@ function endBreak() {
    CELEBRATION
 ═══════════════════════════════════════════════════════ */
 function showCelebration(taskName) {
-  // Stop any running focus timer
   clearInterval(state.timerInterval);
   clearInterval(state.encourageInterval);
   stopAmbientSound();
-
-  // Award 3 stars for completing a task
-  awardStar(3, /* silent = */ true);
-
+  awardStar(3, true);
   state._celebrateTask = taskName;
   showScreen('celebrate');
 }
 
 function onEnterCelebrate() {
   const taskName = state._celebrateTask || 'your homework';
-
-  // Pick a celebration emoji based on star count (milestone rewards)
-  const emojis = ['🎉','⭐','🏆','🌈','🦄','🎊','🚀','🌟'];
-  const emoji   = emojis[Math.floor(Math.random() * emojis.length)];
-
-  document.getElementById('celebrate-emoji').textContent    = emoji;
-  document.getElementById('celebrate-title').textContent    = 'Amazing Job!';
+  const emojis   = ['🎉','⭐','🏆','🌈','🦄','🎊','🚀','🌟'];
+  document.getElementById('celebrate-emoji').textContent   = emojis[Math.floor(Math.random() * emojis.length)];
+  document.getElementById('celebrate-title').textContent   = 'Amazing Job!';
   document.getElementById('celebrate-subtitle').textContent = `You finished: ${taskName}!`;
 
-  // Animate big stars
-  const starContainer = document.getElementById('celebrate-big-stars');
-  starContainer.innerHTML = '';
+  const stars = document.getElementById('celebrate-big-stars');
+  stars.innerHTML = '';
   const count = Math.min(state.starsToday, 8);
   for (let i = 0; i < count; i++) {
     const s = document.createElement('span');
     s.className = 'celebrate-star';
     s.textContent = '⭐';
     s.style.animationDelay = `${i * 0.12}s`;
-    starContainer.appendChild(s);
+    stars.appendChild(s);
   }
-
   document.getElementById('total-stars-row').textContent =
     `Total stars today: ⭐ ${state.starsToday}`;
 
@@ -1152,16 +1217,11 @@ function finishForToday() {
    STARS & STREAK
 ═══════════════════════════════════════════════════════ */
 function awardStar(count, silent) {
-  state.starsToday  += count;
-  state.lastStarDate = today();
+  state.starsToday += count;
   saveData();
   renderStarsDisplay();
   if (!silent) playStarSparkle();
-  else {
-    // Small confetti still fires silently
-    playStarSparkle();
-  }
-  // Update focus-screen counter live
+  else playStarSparkle();
   document.getElementById('focus-stars').textContent = `⭐ ${state.starsToday}`;
 }
 
@@ -1171,14 +1231,12 @@ function playStarSparkle() {
     const c = document.createElement('div');
     c.className = 'confetti-piece';
     c.style.cssText = `
-      left: ${30 + Math.random() * 40}vw;
-      top: -20px;
-      background: ${colors[Math.floor(Math.random() * colors.length)]};
-      animation-delay: ${Math.random() * 0.4}s;
-      animation-duration: ${1.2 + Math.random() * 0.8}s;
-      width: ${5 + Math.random() * 7}px;
-      height: ${5 + Math.random() * 7}px;
-      border-radius: ${Math.random() > 0.5 ? '50%' : '3px'};
+      left:${30 + Math.random() * 40}vw; top:-20px;
+      background:${colors[Math.floor(Math.random() * colors.length)]};
+      animation-delay:${Math.random() * 0.4}s;
+      animation-duration:${1.2 + Math.random() * 0.8}s;
+      width:${5 + Math.random() * 7}px; height:${5 + Math.random() * 7}px;
+      border-radius:${Math.random() > 0.5 ? '50%' : '3px'};
     `;
     document.body.appendChild(c);
     setTimeout(() => c.remove(), 2500);
@@ -1191,14 +1249,12 @@ function launchFullConfetti() {
     const c = document.createElement('div');
     c.className = 'confetti-piece';
     c.style.cssText = `
-      left: ${Math.random() * 100}vw;
-      top: -20px;
-      background: ${colors[Math.floor(Math.random() * colors.length)]};
-      animation-delay: ${Math.random() * 2.2}s;
-      animation-duration: ${2.0 + Math.random() * 1.8}s;
-      width: ${7 + Math.random() * 13}px;
-      height: ${7 + Math.random() * 13}px;
-      border-radius: ${Math.random() > 0.4 ? '50%' : '3px'};
+      left:${Math.random() * 100}vw; top:-20px;
+      background:${colors[Math.floor(Math.random() * colors.length)]};
+      animation-delay:${Math.random() * 2.2}s;
+      animation-duration:${2.0 + Math.random() * 1.8}s;
+      width:${7 + Math.random() * 13}px; height:${7 + Math.random() * 13}px;
+      border-radius:${Math.random() > 0.4 ? '50%' : '3px'};
     `;
     document.body.appendChild(c);
     setTimeout(() => c.remove(), 5500);
@@ -1206,27 +1262,20 @@ function launchFullConfetti() {
 }
 
 function recordActiveToday() {
-  const t = today();
-  const y = yesterday();
-
+  const t = calendarToday();
+  const y = calendarYesterday();
   if (state.lastActiveDate !== t) {
-    // New day — update streak
-    if (state.lastActiveDate === y) {
-      state.streak++;  // consecutive day
-    } else if (!state.lastActiveDate) {
-      state.streak = 1;  // first ever
-    } else {
-      state.streak = 1;  // streak broken, restart at 1
-    }
+    if (state.lastActiveDate === y) state.streak++;
+    else if (!state.lastActiveDate)  state.streak = 1;
+    else                             state.streak = 1;
     state.lastActiveDate = t;
   }
-  // Always refresh streak display even if same day
   renderStreakBadge();
   saveData();
 }
 
 /* ═══════════════════════════════════════════════════════
-   WEB AUDIO
+   AUDIO — all synthesis, no files
 ═══════════════════════════════════════════════════════ */
 function getAudioCtx() {
   if (!state.audioCtx) {
@@ -1236,41 +1285,86 @@ function getAudioCtx() {
   return state.audioCtx;
 }
 
+/* Chime: staggered sine arpeggio */
 function playChime(type) {
   try {
     const ctx   = getAudioCtx();
-    const freqs = type === 'start'
-      ? [523, 659, 784]      // C5-E5-G5 upward arpeggio
-      : [784, 1047, 1319];   // G5-C6-E6 triumphant
-
+    const freqs = type === 'start' ? [523, 659, 784] : [784, 1047, 1319];
     freqs.forEach((freq, i) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = freq;
       const t = ctx.currentTime + i * 0.13;
       gain.gain.setValueAtTime(0, t);
       gain.gain.linearRampToValueAtTime(0.28, t + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
-      osc.start(t);
-      osc.stop(t + 0.9);
+      osc.start(t); osc.stop(t + 0.9);
     });
   } catch(e) {}
 }
 
+/* Applause: multiple bandpass-filtered noise bursts */
+function playApplause() {
+  try {
+    const ctx = getAudioCtx();
+    for (let i = 0; i < 12; i++) {
+      const delay   = i * 0.09 + Math.random() * 0.03;
+      const bufSize = Math.floor(ctx.sampleRate * 0.065);
+      const buf     = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+      const data    = buf.getChannelData(0);
+      for (let j = 0; j < bufSize; j++) data[j] = Math.random() * 2 - 1;
+
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 900 + Math.random() * 600;
+      bp.Q.value = 0.5;
+      const gain = ctx.createGain();
+      const t = ctx.currentTime + delay;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.55, t + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.055 + Math.random() * 0.025);
+      src.connect(bp); bp.connect(gain); gain.connect(ctx.destination);
+      src.start(t);
+    }
+    // Fanfare on top of applause
+    setTimeout(() => { try { playCelebrationSound(); } catch(e) {} }, 300);
+  } catch(e) {}
+}
+
+/* Ping: single clean tone, always audible */
+function playPing() {
+  try {
+    const ctx  = getAudioCtx();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 1047;  // C6
+    const t = ctx.currentTime;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.6, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+    osc.start(t); osc.stop(t + 1.5);
+  } catch(e) {}
+}
+
+/* Always fires at timer end — applause if sound on, ping if muted */
+function playCompletionSound() {
+  if (state.soundEnabled) playApplause();
+  else                    playPing();
+}
+
+/* Brown noise ambient */
 function startAmbientSound() {
   if (!state.soundEnabled) return;
-  stopAmbientSound();  // clear any previous
+  stopAmbientSound();
   try {
     const ctx        = getAudioCtx();
     const bufferSize = ctx.sampleRate * 3;
     const buffer     = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data       = buffer.getChannelData(0);
-
-    // Brown noise: integrate white noise
     let lastOut = 0;
     for (let i = 0; i < bufferSize; i++) {
       const white = Math.random() * 2 - 1;
@@ -1278,18 +1372,13 @@ function startAmbientSound() {
       lastOut  = data[i];
       data[i] *= 3.5;
     }
-
-    state.noiseSource       = ctx.createBufferSource();
+    state.noiseSource        = ctx.createBufferSource();
     state.noiseSource.buffer = buffer;
     state.noiseSource.loop   = true;
-
     const filter = ctx.createBiquadFilter();
-    filter.type            = 'lowpass';
-    filter.frequency.value = 800;
-
-    state.gainNode             = ctx.createGain();
-    state.gainNode.gain.value  = 0.14;
-
+    filter.type = 'lowpass'; filter.frequency.value = 800;
+    state.gainNode = ctx.createGain();
+    state.gainNode.gain.value = 0.14;
     state.noiseSource.connect(filter);
     filter.connect(state.gainNode);
     state.gainNode.connect(ctx.destination);
@@ -1305,57 +1394,46 @@ function stopAmbientSound() {
         state.gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
         const src = state.noiseSource;
         setTimeout(() => { try { src.stop(); } catch(e) {} }, 360);
-      } else {
-        state.noiseSource.stop();
-      }
+      } else { state.noiseSource.stop(); }
     } catch(e) {}
-    state.noiseSource = null;
-    state.gainNode    = null;
+    state.noiseSource = null; state.gainNode = null;
   }
 }
 
+/* Celebration fanfare: ascending arpeggio */
 function playCelebrationSound() {
   try {
-    const ctx    = getAudioCtx();
-    const melody = [
-      { freq: 523,  t: 0   },
-      { freq: 659,  t: 0.1 },
-      { freq: 784,  t: 0.2 },
+    const ctx = getAudioCtx();
+    [
+      { freq: 523,  t: 0    },
+      { freq: 659,  t: 0.10 },
+      { freq: 784,  t: 0.20 },
       { freq: 1047, t: 0.35 },
-      { freq: 1319, t: 0.5 },
-      { freq: 1568, t: 0.7 },
-    ];
-    melody.forEach(({ freq, t }) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-
+      { freq: 1319, t: 0.50 },
+      { freq: 1568, t: 0.70 },
+    ].forEach(({ freq, t }) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = freq;
       const start = ctx.currentTime + t;
       gain.gain.setValueAtTime(0, start);
       gain.gain.linearRampToValueAtTime(0.32, start + 0.03);
       gain.gain.exponentialRampToValueAtTime(0.001, start + 0.65);
-      osc.start(start);
-      osc.stop(start + 0.7);
+      osc.start(start); osc.stop(start + 0.70);
     });
   } catch(e) {}
 }
 
 function toggleSound() {
   state.soundEnabled = !state.soundEnabled;
-  const btn = document.getElementById('sound-toggle');
-  btn.textContent = state.soundEnabled ? '🔊 Focus Sounds: ON' : '🔇 Focus Sounds: OFF';
-  if (state.soundEnabled) {
-    playChime('start');  // test chime + resumes AudioContext
-  } else {
-    stopAmbientSound();
-  }
+  document.getElementById('sound-toggle').textContent =
+    state.soundEnabled ? '🔊 Focus Sounds: ON' : '🔇 Focus Sounds: OFF';
+  if (state.soundEnabled) playChime('start');
+  else stopAmbientSound();
 }
 
 /* ═══════════════════════════════════════════════════════
-   KEYBOARD SUPPORT
+   KEYBOARD
 ═══════════════════════════════════════════════════════ */
 document.getElementById('new-item-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') addChecklistItem();
@@ -1365,6 +1443,10 @@ document.getElementById('new-item-input').addEventListener('keydown', e => {
    INIT
 ═══════════════════════════════════════════════════════ */
 (function init() {
+  // Restore active user
+  const savedUser = localStorage.getItem(ACTIVE_USER_KEY);
+  state.currentUser = (savedUser === 'adult') ? 'adult' : 'kid';
+  applyTheme();
   initFromStorage();
   onEnterHome();
 })();
