@@ -775,6 +775,7 @@ const state = {
   breakDuration:    60,
   timerRemaining:   0,
   breakRemaining:   0,
+  endTime:          null,   // absolute ms timestamp when focus timer fires
   timerInterval:    null,
   breakInterval:    null,
   encourageInterval: null,
@@ -789,7 +790,7 @@ const state = {
   noiseSource:      null,
   streak:           0,
   lastActiveDate:   null,
-  lastDay:          null,         // 3am day-boundary key
+  lastDay:          null,
   _pendingNewDay:   null,
   _focusTaskLabel:  null,
   _celebrateTask:   null,
@@ -847,6 +848,49 @@ function initFromStorage() {
   state.lastDay         = saved.lastDay || null;
 }
 
+/* ── Timer state persistence (background survival) ── */
+function persistTimerState() {
+  if (state.endTime) {
+    try {
+      localStorage.setItem('pp-timer', JSON.stringify({
+        endTime:   state.endTime,
+        totalSecs: state.timerDuration,
+        breakSecs: state.breakDuration,
+        taskLabel: state._focusTaskLabel,
+        user:      state.currentUser,
+      }));
+    } catch(e) {}
+  } else {
+    localStorage.removeItem('pp-timer');
+  }
+}
+
+function restoreTimerIfActive() {
+  try {
+    const raw = localStorage.getItem('pp-timer');
+    if (!raw) return;
+    const t = JSON.parse(raw);
+    if (t.user !== state.currentUser) return;
+    const remaining = Math.ceil((t.endTime - Date.now()) / 1000);
+    if (remaining <= 0) {
+      // Timer expired while away — award star and go straight to break
+      localStorage.removeItem('pp-timer');
+      awardStar(1, true);
+      state.breakDuration   = t.breakSecs;
+      state._focusTaskLabel = t.taskLabel;
+      showScreen('break');
+      return;
+    }
+    // Resume with correct remaining time
+    state.endTime         = t.endTime;
+    state.timerDuration   = t.totalSecs;
+    state.timerRemaining  = remaining;
+    state.breakDuration   = t.breakSecs;
+    state._focusTaskLabel = t.taskLabel;
+    showScreen('focus');
+  } catch(e) {}
+}
+
 /* ═══════════════════════════════════════════════════════
    DAILY RESET (3am boundary)
 ═══════════════════════════════════════════════════════ */
@@ -896,7 +940,15 @@ function pollDayChange() {
 }
 setInterval(pollDayChange, 60 * 1000);
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) pollDayChange();
+  if (!document.hidden) {
+    pollDayChange();
+    // Resync timer display immediately on return — catches any throttled ticks
+    if (state.endTime && !state.sessionPaused) {
+      state.timerRemaining = Math.max(0, Math.ceil((state.endTime - Date.now()) / 1000));
+      updateTimerDisplay();
+      updateTimerColor();
+    }
+  }
 });
 
 /* ═══════════════════════════════════════════════════════
@@ -1047,6 +1099,7 @@ function renderChecklist() {
 function beginFocus() {
   const pending = state.items.find(i => !i.done);
   state._focusTaskLabel = pending ? pending.text : null;
+  requestNotifPermission();
   showScreen('focus');
 }
 
@@ -1056,7 +1109,12 @@ function startFocusTimer() {
   ring.style.strokeDashoffset = '0';
   ring.style.stroke = '#4CD964';
 
-  state.timerRemaining = state.timerDuration;
+  // If restoring from background, endTime is already set; otherwise start fresh
+  if (!state.endTime) {
+    state.timerRemaining = state.timerDuration;
+    state.endTime = Date.now() + state.timerRemaining * 1000;
+    persistTimerState();
+  }
   state.sessionPaused  = false;
   document.getElementById('pause-btn').textContent = '⏸️';
   document.getElementById('focus-stars').textContent = `⭐ ${state.starsToday}`;
@@ -1078,16 +1136,20 @@ function startFocusTimer() {
 
   state.timerInterval = setInterval(() => {
     if (state.sessionPaused) return;
-    state.timerRemaining--;
+    // Recalculate from absolute end time — accurate even after throttling
+    state.timerRemaining = Math.max(0, Math.ceil((state.endTime - Date.now()) / 1000));
     updateTimerDisplay();
     updateTimerColor();
 
     if (state.timerRemaining <= 0) {
       clearInterval(state.timerInterval);
       clearInterval(state.encourageInterval);
+      state.endTime = null;
+      persistTimerState();
       awardStar(1, true);
       stopAmbientSound();
-      playCompletionSound();   // always fires regardless of sound toggle
+      playCompletionSound();
+      notifyDone('🍅 Pomo done!', 'Time for a break — great work!');
       showScreen('break');
     }
   }, 1000);
@@ -1133,13 +1195,25 @@ function updateTimerColor() {
 function togglePause() {
   state.sessionPaused = !state.sessionPaused;
   document.getElementById('pause-btn').textContent = state.sessionPaused ? '▶️' : '⏸️';
-  if (state.sessionPaused) stopAmbientSound();
-  else if (state.soundEnabled) startAmbientSound();
+  if (state.sessionPaused) {
+    // Freeze remaining time and clear endTime so background timer doesn't drift
+    state.timerRemaining = Math.max(0, Math.ceil((state.endTime - Date.now()) / 1000));
+    state.endTime = null;
+    persistTimerState();
+    stopAmbientSound();
+  } else {
+    // Resume: anchor a new endTime from current remaining
+    state.endTime = Date.now() + state.timerRemaining * 1000;
+    persistTimerState();
+    if (state.soundEnabled) startAmbientSound();
+  }
 }
 
 function endSession() {
   clearInterval(state.timerInterval);
   clearInterval(state.encourageInterval);
+  state.endTime = null;
+  persistTimerState();
   stopAmbientSound();
   showScreen('home');
 }
@@ -1178,6 +1252,7 @@ function startBreakTimer() {
 
 function endBreak() {
   clearInterval(state.breakInterval);
+  notifyDone('🚀 Break over!', 'Ready to focus again?');
   if (state.soundEnabled) playChime('start');
   showScreen('focus');
 }
@@ -1282,6 +1357,22 @@ function recordActiveToday() {
   }
   renderStreakBadge();
   saveData();
+}
+
+/* ═══════════════════════════════════════════════════════
+   NOTIFICATIONS
+═══════════════════════════════════════════════════════ */
+async function requestNotifPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    await Notification.requestPermission();
+  }
+}
+
+function notifyDone(title, body) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  try { new Notification(title, { body, tag: 'pomo' }); } catch(e) {}
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1453,12 +1544,13 @@ document.getElementById('new-item-input').addEventListener('keydown', e => {
    INIT
 ═══════════════════════════════════════════════════════ */
 (function init() {
-  // Restore active user
   const savedUser = localStorage.getItem(ACTIVE_USER_KEY);
   state.currentUser = (savedUser === 'adult') ? 'adult' : 'kid';
   applyTheme();
   initFromStorage();
+  // Must call onEnterHome first so screens exist, then check for active timer
   onEnterHome();
+  restoreTimerIfActive();
 })();
 </script>
 </body>
