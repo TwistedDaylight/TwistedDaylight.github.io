@@ -669,7 +669,7 @@
   <div id="screen-break" class="screen">
 
     <div class="break-card">
-      <div class="break-header">⏸️ Movement Break!</div>
+      <div class="break-header" id="break-header">⏸️ Movement Break!</div>
       <div class="break-activity-emoji" id="break-emoji">🦘</div>
       <div class="break-activity-name"  id="break-activity">Jump Around!</div>
       <div class="break-activity-desc"  id="break-desc">Do 10 big jumps!</div>
@@ -701,7 +701,7 @@
       <div class="celebrate-subtitle"  id="celebrate-subtitle">You finished your homework!</div>
       <div class="celebrate-big-stars" id="celebrate-big-stars"></div>
       <div class="total-stars-row"     id="total-stars-row">Total stars today: ⭐ 0</div>
-      <button class="big-start-btn" onclick="showScreen('home')" style="margin-top:6px;">
+      <button class="big-start-btn" id="celebrate-more-btn" onclick="showScreen('home')" style="margin-top:6px;">
         More Homework! 📚
       </button>
       <button class="done-today-btn" onclick="finishForToday()">
@@ -748,7 +748,7 @@ const TIMER_OPTIONS = [
   { label: '25 min 🍅',  value: 25 * 60, breakSecs: 5 * 60 },
 ];
 
-const BREAKS = [
+const BREAKS_KID = [
   { emoji: '🦘',  name: 'Jumping Jacks!',  desc: 'Do 10 jumping jacks — arms and legs wide!' },
   { emoji: '💃',  name: 'Dance Freeze!',   desc: 'Dance to 3 beats, then FREEZE like a statue!' },
   { emoji: '🐻',  name: 'Bear Walk!',      desc: 'Walk on hands and feet to the wall and back!' },
@@ -757,6 +757,17 @@ const BREAKS = [
   { emoji: '🐸',  name: 'Frog Jumps!',    desc: 'Squat down low and jump up HIGH — 8 times!' },
   { emoji: '🧘',  name: 'Big Breaths!',   desc: '5 huge breaths — in through nose, out through mouth!' },
   { emoji: '🌪️', name: 'Spin Around!',   desc: 'Spin 5 times one way, then 5 the other!' },
+];
+
+const BREAKS_ADULT = [
+  { emoji: '🚶',  name: 'Short Walk',     desc: 'Walk around the room or step outside — just 2 minutes.' },
+  { emoji: '🧘',  name: 'Desk Stretch',   desc: 'Roll your shoulders back, then tilt your neck slowly side to side.' },
+  { emoji: '👁️', name: 'Eye Rest',       desc: 'Look at something 20 feet away for 20 seconds. Blink slowly.' },
+  { emoji: '💧',  name: 'Hydrate',        desc: 'Get a glass of water. Drink it away from the screen.' },
+  { emoji: '🌬️', name: 'Box Breathing',  desc: 'Inhale 4s → hold 4s → exhale 4s → hold 4s. Do this 3 times.' },
+  { emoji: '🙆',  name: 'Full Stretch',   desc: 'Stand up, reach both arms overhead, then slowly fold forward.' },
+  { emoji: '🏃',  name: 'Get Moving',     desc: 'Walk up and down the stairs, or march in place for 60 seconds.' },
+  { emoji: '😌',  name: 'Mindful Minute', desc: 'Close your eyes. 5 slow breaths. Notice 3 sounds around you.' },
 ];
 
 const ENCOURAGEMENTS = [
@@ -969,6 +980,15 @@ function applyTheme() {
   document.body.classList.toggle('adult-theme', state.currentUser === 'adult');
   document.getElementById('btn-kid').classList.toggle('active',   state.currentUser === 'kid');
   document.getElementById('btn-adult').classList.toggle('active', state.currentUser === 'adult');
+  updateUserStrings();
+}
+
+function updateUserStrings() {
+  const adult = state.currentUser === 'adult';
+  document.querySelector('.checklist-title').textContent =
+    adult ? '📋 Today\'s Tasks' : '📚 Today\'s Homework';
+  document.getElementById('new-item-input').placeholder =
+    adult ? 'Add task...' : 'Add homework...';
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1002,7 +1022,10 @@ function renderStreakBadge() {
 function renderStarsDisplay() {
   const display = document.getElementById('stars-display');
   if (state.starsToday === 0) {
-    display.innerHTML = '<span class="stars-empty">Earn stars by doing homework! ⭐</span>';
+    const emptyMsg = state.currentUser === 'adult'
+      ? 'Complete tasks to earn stars! ⭐'
+      : 'Earn stars by doing homework! ⭐';
+    display.innerHTML = `<span class="stars-empty">${emptyMsg}</span>`;
   } else {
     const shown = Math.min(state.starsToday, 10);
     let html = '';
@@ -1227,9 +1250,11 @@ function formatBreakTime(secs) {
 }
 
 function startBreakTimer() {
-  const b = BREAKS[state.currentBreakIndex % BREAKS.length];
+  const breaks = state.currentUser === 'adult' ? BREAKS_ADULT : BREAKS_KID;
+  const b = breaks[state.currentBreakIndex % breaks.length];
   state.currentBreakIndex++;
 
+  document.getElementById('break-header').textContent   = state.currentUser === 'adult' ? '⏸️ Break Time' : '⏸️ Movement Break!';
   document.getElementById('break-emoji').textContent    = b.emoji;
   document.getElementById('break-activity').textContent = b.name;
   document.getElementById('break-desc').textContent     = b.desc;
@@ -1270,7 +1295,9 @@ function showCelebration(taskName) {
 }
 
 function onEnterCelebrate() {
-  const taskName = state._celebrateTask || 'your homework';
+  const adult    = state.currentUser === 'adult';
+  const taskName = state._celebrateTask || (adult ? 'your task' : 'your homework');
+  document.getElementById('celebrate-more-btn').textContent = adult ? 'More Tasks! 📋' : 'More Homework! 📚';
   const emojis   = ['🎉','⭐','🏆','🌈','🦄','🎊','🚀','🌟'];
   document.getElementById('celebrate-emoji').textContent   = emojis[Math.floor(Math.random() * emojis.length)];
   document.getElementById('celebrate-title').textContent   = 'Amazing Job!';
