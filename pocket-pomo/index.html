@@ -472,6 +472,20 @@
       width: 100%;
       box-shadow: 0 4px 14px rgba(76,217,100,0.35);
     }
+    .break-pause-btn {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--muted);
+      background: none;
+      padding: 6px 18px;
+      border-radius: 10px;
+      border: 2px solid #D8D0C4;
+      min-height: 38px;
+    }
+    .break-pause-btn.paused {
+      color: var(--tangerine);
+      border-color: var(--tangerine);
+    }
 
     /* ── CELEBRATE SCREEN ──────────────────────────────── */
     #screen-celebrate {
@@ -687,7 +701,8 @@
         </div>
       </div>
 
-      <button class="skip-break-btn" onclick="endBreak()">Ready! Let's go! 🚀</button>
+      <button class="break-pause-btn" id="break-pause-btn" onclick="toggleBreakPause()">⏸️ Pause</button>
+      <button class="skip-break-btn" id="skip-break-btn" onclick="endBreak()">Ready! Let's go! 🚀</button>
     </div>
 
   </div><!-- /screen-break -->
@@ -710,6 +725,19 @@
     </div>
 
   </div><!-- /screen-celebrate -->
+
+  <!-- ══ CONTINUE FOCUS MODAL ════════════════════════════ -->
+  <div class="modal-overlay" id="continue-modal">
+    <div class="modal-box">
+      <div class="modal-emoji" id="continue-emoji">🍅</div>
+      <div class="modal-title" id="continue-title">Break's over!</div>
+      <div class="modal-body"  id="continue-body">Ready to keep going?</div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-secondary" onclick="endBreakGoHome()">🏠 Not yet</button>
+        <button class="modal-btn modal-btn-primary"   id="continue-primary-btn" onclick="endBreakContinue()">Let's go! 🚀</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ══ DAILY RESET MODAL ════════════════════════════════ -->
   <div class="modal-overlay" id="reset-modal">
@@ -791,6 +819,8 @@ const state = {
   breakInterval:    null,
   encourageInterval: null,
   sessionPaused:    false,
+  breakPaused:      false,
+  _breakFromTask:   false,
   currentBreakIndex: 0,
   encourageIndex:   0,
   starsToday:       0,
@@ -1072,8 +1102,11 @@ function toggleItem(id) {
   item.done = true;
   saveData();
   renderChecklist();
-  showCelebration(item.text);
+  awardStar(3, true);
   recordActiveToday();
+  state._breakFromTask = true;
+  state.breakDuration  = 60;
+  showScreen('break');
 }
 
 function deleteItem(id) {
@@ -1250,11 +1283,28 @@ function formatBreakTime(secs) {
 }
 
 function startBreakTimer() {
+  // Reset pause state
+  state.breakPaused = false;
+  const pauseBtn = document.getElementById('break-pause-btn');
+  pauseBtn.textContent = '⏸️ Pause';
+  pauseBtn.classList.remove('paused');
+
   const breaks = state.currentUser === 'adult' ? BREAKS_ADULT : BREAKS_KID;
   const b = breaks[state.currentBreakIndex % breaks.length];
   state.currentBreakIndex++;
 
-  document.getElementById('break-header').textContent   = state.currentUser === 'adult' ? '⏸️ Break Time' : '⏸️ Movement Break!';
+  // Header depends on whether this break came from a task check-off
+  const headerEl = document.getElementById('break-header');
+  if (state._breakFromTask) {
+    headerEl.textContent = state.currentUser === 'adult'
+      ? '✅ Done! Rest for a minute.'
+      : '🎉 Task done! Take a break!';
+    launchFullConfetti();
+    playCompletionSound();
+  } else {
+    headerEl.textContent = state.currentUser === 'adult' ? '⏸️ Break Time' : '⏸️ Movement Break!';
+  }
+
   document.getElementById('break-emoji').textContent    = b.emoji;
   document.getElementById('break-activity').textContent = b.name;
   document.getElementById('break-desc').textContent     = b.desc;
@@ -1267,6 +1317,7 @@ function startBreakTimer() {
 
   clearInterval(state.breakInterval);
   state.breakInterval = setInterval(() => {
+    if (state.breakPaused) return;
     state.breakRemaining--;
     const pct = state.breakRemaining / state.breakDuration;
     ring.style.strokeDashoffset = BREAK_CIRC * (1 - pct);
@@ -1275,11 +1326,58 @@ function startBreakTimer() {
   }, 1000);
 }
 
+function toggleBreakPause() {
+  state.breakPaused = !state.breakPaused;
+  const btn = document.getElementById('break-pause-btn');
+  if (state.breakPaused) {
+    btn.textContent = '▶️ Resume';
+    btn.classList.add('paused');
+  } else {
+    btn.textContent = '⏸️ Pause';
+    btn.classList.remove('paused');
+  }
+}
+
 function endBreak() {
   clearInterval(state.breakInterval);
   notifyDone('🚀 Break over!', 'Ready to focus again?');
   if (state.soundEnabled) playChime('start');
-  showScreen('focus');
+  showContinueModal();
+}
+
+function showContinueModal() {
+  const adult    = state.currentUser === 'adult';
+  const fromTask = state._breakFromTask;
+  document.getElementById('continue-emoji').textContent =
+    fromTask ? (adult ? '✅' : '🎉') : '🍅';
+  document.getElementById('continue-title').textContent =
+    adult ? 'Break over' : 'Break\'s over! 🌟';
+  document.getElementById('continue-body').textContent =
+    adult ? 'Ready to continue?' : 'Ready to keep going?';
+  document.getElementById('continue-primary-btn').textContent =
+    adult ? 'Continue 🍅' : 'Let\'s go! 🚀';
+  document.getElementById('continue-modal').classList.add('show');
+}
+
+function endBreakContinue() {
+  document.getElementById('continue-modal').classList.remove('show');
+  const fromTask = state._breakFromTask;
+  state._breakFromTask = false;
+  // Task-completion breaks return home (no active focus session to resume).
+  // Regular pomo breaks restart the focus timer.
+  if (fromTask) {
+    showScreen('home');
+  } else {
+    showScreen('focus');
+  }
+}
+
+function endBreakGoHome() {
+  document.getElementById('continue-modal').classList.remove('show');
+  state._breakFromTask = false;
+  state.endTime = null;
+  persistTimerState();
+  showScreen('home');
 }
 
 /* ═══════════════════════════════════════════════════════
