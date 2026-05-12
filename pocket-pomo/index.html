@@ -269,6 +269,25 @@
       justify-content: center;
       flex-shrink: 0;
     }
+    .checklist-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .checklist-header .checklist-title { margin-bottom: 0; }
+    .copy-done-btn {
+      width: 34px; height: 34px;
+      border-radius: 10px;
+      background: #F0EBE0;
+      color: var(--muted);
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    body.adult-theme .copy-done-btn { background: #EEF2FF; color: #6366F1; }
     .add-item-row { display: flex; gap: 8px; margin-top: 12px; }
     .add-item-input {
       flex: 1;
@@ -626,7 +645,10 @@
     </div>
 
     <div class="checklist-card">
-      <div class="checklist-title">📚 Today's Homework</div>
+      <div class="checklist-header">
+        <div class="checklist-title">📚 Today's Homework</div>
+        <button class="copy-done-btn" id="copy-done-home-btn" onclick="copyCompletedTasks()" title="Copy completed tasks">📋</button>
+      </div>
       <div class="checklist-items" id="checklist-items"></div>
       <div class="add-item-row">
         <input type="text" id="new-item-input" class="add-item-input"
@@ -750,6 +772,9 @@
       </div>
       <div class="modal-body" style="font-size:0.85rem;margin-top:2px;">
         Your tasks have been cleared for today.<br>Start fresh with stars too?
+      </div>
+      <div style="display:flex;justify-content:flex-end;width:100%;">
+        <button class="copy-done-btn" onclick="copyCompletedTasks()" title="Copy completed tasks">📋</button>
       </div>
       <div class="modal-actions">
         <button class="modal-btn modal-btn-secondary" onclick="doReset(false)">Keep Stars ⭐</button>
@@ -1104,9 +1129,6 @@ function toggleItem(id) {
   renderChecklist();
   awardStar(3, true);
   recordActiveToday();
-  state._breakFromTask = true;
-  state.breakDuration  = 60;
-  showScreen('break');
 }
 
 function deleteItem(id) {
@@ -1119,7 +1141,8 @@ function renderChecklist() {
   const container = document.getElementById('checklist-items');
   container.innerHTML = '';
   if (state.items.length === 0) {
-    container.innerHTML = '<div style="text-align:center;color:#C0B090;font-size:0.9rem;padding:8px 0;">Add your homework above!</div>';
+    const emptyText = state.currentUser === 'adult' ? 'Add your tasks above!' : 'Add your homework above!';
+    container.innerHTML = `<div style="text-align:center;color:#C0B090;font-size:0.9rem;padding:8px 0;">${emptyText}</div>`;
     return;
   }
   state.items.forEach(item => {
@@ -1271,7 +1294,9 @@ function endSession() {
   state.endTime = null;
   persistTimerState();
   stopAmbientSound();
-  showScreen('home');
+  state._breakFromTask = true;
+  state.breakDuration  = 60;
+  showScreen('break');
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1293,16 +1318,14 @@ function startBreakTimer() {
   const b = breaks[state.currentBreakIndex % breaks.length];
   state.currentBreakIndex++;
 
-  // Header depends on whether this break came from a task check-off
   const headerEl = document.getElementById('break-header');
+  const skipBtn  = document.getElementById('skip-break-btn');
   if (state._breakFromTask) {
-    headerEl.textContent = state.currentUser === 'adult'
-      ? '✅ Done! Rest for a minute.'
-      : '🎉 Task done! Take a break!';
-    launchFullConfetti();
-    playCompletionSound();
+    headerEl.textContent = state.currentUser === 'adult' ? '⏸️ Break Time' : '⏸️ Quick Break!';
+    skipBtn.textContent  = state.currentUser === 'adult' ? 'Done for now 🏠' : 'All done! 🏠';
   } else {
     headerEl.textContent = state.currentUser === 'adult' ? '⏸️ Break Time' : '⏸️ Movement Break!';
+    skipBtn.textContent  = 'Ready! Let\'s go! 🚀';
   }
 
   document.getElementById('break-emoji').textContent    = b.emoji;
@@ -1340,16 +1363,19 @@ function toggleBreakPause() {
 
 function endBreak() {
   clearInterval(state.breakInterval);
+  if (state._breakFromTask) {
+    state._breakFromTask = false;
+    showScreen('home');
+    return;
+  }
   notifyDone('🚀 Break over!', 'Ready to focus again?');
   if (state.soundEnabled) playChime('start');
   showContinueModal();
 }
 
 function showContinueModal() {
-  const adult    = state.currentUser === 'adult';
-  const fromTask = state._breakFromTask;
-  document.getElementById('continue-emoji').textContent =
-    fromTask ? (adult ? '✅' : '🎉') : '🍅';
+  const adult = state.currentUser === 'adult';
+  document.getElementById('continue-emoji').textContent = '🍅';
   document.getElementById('continue-title').textContent =
     adult ? 'Break over' : 'Break\'s over! 🌟';
   document.getElementById('continue-body').textContent =
@@ -1361,15 +1387,7 @@ function showContinueModal() {
 
 function endBreakContinue() {
   document.getElementById('continue-modal').classList.remove('show');
-  const fromTask = state._breakFromTask;
-  state._breakFromTask = false;
-  // Task-completion breaks return home (no active focus session to resume).
-  // Regular pomo breaks restart the focus timer.
-  if (fromTask) {
-    showScreen('home');
-  } else {
-    showScreen('focus');
-  }
+  showScreen('focus');
 }
 
 function endBreakGoHome() {
@@ -1656,6 +1674,37 @@ function toggleSound() {
     state.soundEnabled ? '🔊 Focus Sounds: ON' : '🔇 Focus Sounds: OFF';
   if (state.soundEnabled) playChime('start');
   else stopAmbientSound();
+}
+
+/* ═══════════════════════════════════════════════════════
+   COPY COMPLETED TASKS
+═══════════════════════════════════════════════════════ */
+function copyCompletedTasks() {
+  const done = state.items.filter(i => i.done);
+  if (!done.length) return;
+  const text = done.map(i => '✓ ' + i.text).join('\n');
+  const feedback = () => {
+    document.querySelectorAll('.copy-done-btn').forEach(btn => {
+      const orig = btn.textContent;
+      btn.textContent = '✓';
+      setTimeout(() => { btn.textContent = orig; }, 1200);
+    });
+  };
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(feedback).catch(() => { fallbackCopy(text); feedback(); });
+  } else {
+    fallbackCopy(text); feedback();
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); } catch(e) {}
+  ta.remove();
 }
 
 /* ═══════════════════════════════════════════════════════
