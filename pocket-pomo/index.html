@@ -365,6 +365,16 @@
       border-radius: 12px;
       border: 2px solid #E0D8CC;
     }
+    .termux-link-btn {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--muted);
+      background: none;
+      padding: 8px 16px;
+      border-radius: 12px;
+      border: 2px solid #E0D8CC;
+    }
+    .termux-link-btn.linked { color: var(--mint); border-color: var(--mint); }
 
     /* ── FOCUS SCREEN ──────────────────────────────────── */
     #screen-focus { background: var(--cream); justify-content: space-between; padding-top: 16px; }
@@ -688,6 +698,11 @@
       🔇 Focus Sounds: OFF
     </button>
 
+    <button class="termux-link-btn" id="termux-link-btn"
+            onclick="handleTermuxBtn()" style="display:none">
+      📁 Link Termux file
+    </button>
+
   </div><!-- /screen-home -->
 
   <!-- ══ FOCUS SCREEN ═════════════════════════════════════ -->
@@ -881,6 +896,7 @@ const state = {
   _celebrateTask:   null,
   wakeLockEnabled:  false,
   wakeLock:         null,
+  timerFileHandle:  null,
 };
 
 /* ═══════════════════════════════════════════════════════
@@ -975,6 +991,7 @@ function restoreTimerIfActive() {
     state.breakDuration   = t.breakSecs;
     state._focusTaskLabel = t.taskLabel;
     swMessage({ type: 'TIMER_START', endTime: state.endTime });
+    writeTimerFile(state.endTime, state._focusTaskLabel);
     showScreen('focus');
   } catch(e) {}
 }
@@ -1200,10 +1217,11 @@ function renderChecklist() {
 /* ═══════════════════════════════════════════════════════
    FOCUS TIMER
 ═══════════════════════════════════════════════════════ */
-function beginFocus() {
+async function beginFocus() {
   const pending = state.items.find(i => !i.done);
   state._focusTaskLabel = pending ? pending.text : null;
   requestNotifPermission();
+  await ensureTimerFilePermission();
   showScreen('focus');
 }
 
@@ -1233,6 +1251,7 @@ function startFocusTimer() {
   updateTimerDisplay();
 
   swMessage({ type: 'TIMER_START', endTime: state.endTime });
+  writeTimerFile(state.endTime, state._focusTaskLabel);
 
   if (state.soundEnabled) {
     playChime('start');
@@ -1255,6 +1274,7 @@ function startFocusTimer() {
       state.endTime = null;
       persistTimerState();
       swMessage({ type: 'TIMER_CANCEL' });
+      clearTimerFile();
       releaseWakeLock();
       awardStar(1, true);
       stopAmbientSound();
@@ -1310,12 +1330,14 @@ function togglePause() {
     state.endTime = null;
     persistTimerState();
     swMessage({ type: 'TIMER_CANCEL' });
+    clearTimerFile();
     releaseWakeLock();
     stopAmbientSound();
   } else {
     state.endTime = Date.now() + state.timerRemaining * 1000;
     persistTimerState();
     swMessage({ type: 'TIMER_START', endTime: state.endTime });
+    writeTimerFile(state.endTime, state._focusTaskLabel);
     requestWakeLock();
     if (state.soundEnabled) startAmbientSound();
   }
@@ -1327,6 +1349,7 @@ function endSession() {
   state.endTime = null;
   persistTimerState();
   swMessage({ type: 'TIMER_CANCEL' });
+  clearTimerFile();
   releaseWakeLock();
   stopAmbientSound();
   state._breakFromTask = true;
@@ -1712,6 +1735,105 @@ function toggleSound() {
 }
 
 /* ═══════════════════════════════════════════════════════
+   TERMUX FILE BRIDGE  (File System Access API)
+   Writes endTime to a JSON file that pomo-watch.py reads
+   from Termux to fire a native notification.
+═══════════════════════════════════════════════════════ */
+
+/* Minimal IndexedDB helpers — FileSystemFileHandle can't go in localStorage */
+function _idbOpen() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('pp-meta', 1);
+    r.onupgradeneeded = e => e.target.result.createObjectStore('kv');
+    r.onsuccess = e => res(e.target.result);
+    r.onerror = rej;
+  });
+}
+async function _idbGet(key) {
+  const db = await _idbOpen();
+  return new Promise((res, rej) => {
+    const req = db.transaction('kv').objectStore('kv').get(key);
+    req.onsuccess = () => res(req.result);
+    req.onerror = rej;
+  });
+}
+async function _idbSet(key, val) {
+  const db = await _idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('kv', 'readwrite');
+    tx.objectStore('kv').put(val, key);
+    tx.oncomplete = res;
+    tx.onerror = rej;
+  });
+}
+
+async function writeTimerFile(endTime, task) {
+  if (!state.timerFileHandle) return;
+  try {
+    const w = await state.timerFileHandle.createWritable();
+    await w.write(JSON.stringify({ endTime, task: task || '' }));
+    await w.close();
+  } catch(e) {}
+}
+
+function clearTimerFile() { writeTimerFile(0, ''); }
+
+async function ensureTimerFilePermission() {
+  if (!state.timerFileHandle) return;
+  try {
+    let p = await state.timerFileHandle.queryPermission({ mode: 'readwrite' });
+    if (p === 'prompt') p = await state.timerFileHandle.requestPermission({ mode: 'readwrite' });
+    if (p !== 'granted') { state.timerFileHandle = null; _updateTermuxBtn(); }
+  } catch(e) { state.timerFileHandle = null; _updateTermuxBtn(); }
+}
+
+async function linkTermuxFile() {
+  try {
+    const h = await window.showSaveFilePicker({
+      suggestedName: 'pomo-timer.json',
+      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+    });
+    state.timerFileHandle = h;
+    await _idbSet('timerFileHandle', h);
+    _updateTermuxBtn();
+  } catch(e) { if (e.name !== 'AbortError') console.error(e); }
+}
+
+async function handleTermuxBtn() {
+  if (state.timerFileHandle) {
+    if (confirm('Unlink Termux notification file?')) {
+      state.timerFileHandle = null;
+      try { await _idbSet('timerFileHandle', undefined); } catch(e) {}
+      _updateTermuxBtn();
+    }
+  } else {
+    await linkTermuxFile();
+  }
+}
+
+function _updateTermuxBtn() {
+  const btn = document.getElementById('termux-link-btn');
+  if (!btn) return;
+  if (state.timerFileHandle) {
+    btn.textContent = '📁 Termux: linked ✓';
+    btn.classList.add('linked');
+  } else {
+    btn.textContent = '📁 Link Termux file';
+    btn.classList.remove('linked');
+  }
+}
+
+async function restoreTimerFileHandle() {
+  if (!('showSaveFilePicker' in window)) return;
+  const btn = document.getElementById('termux-link-btn');
+  if (btn) btn.style.display = '';       // reveal — API is available
+  try {
+    const h = await _idbGet('timerFileHandle');
+    if (h) { state.timerFileHandle = h; _updateTermuxBtn(); }
+  } catch(e) {}
+}
+
+/* ═══════════════════════════════════════════════════════
    SERVICE WORKER MESSAGING
 ═══════════════════════════════════════════════════════ */
 async function swMessage(data) {
@@ -1801,6 +1923,7 @@ document.getElementById('new-item-input').addEventListener('keydown', e => {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
+  restoreTimerFileHandle();
 })();
 </script>
 </body>
