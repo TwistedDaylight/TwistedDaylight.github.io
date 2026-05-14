@@ -7,6 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Pocket Pomo" />
   <meta name="theme-color" content="#D94E37" />
+  <link rel="manifest" href="manifest.json" />
   <title>Pocket Pomo</title>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet" />
   <style>
@@ -384,6 +385,23 @@
       align-items: center;
       justify-content: center;
     }
+    .wake-lock-btn {
+      font-size: 1.5rem;
+      background: white;
+      width: 54px; height: 54px;
+      border-radius: 50%;
+      box-shadow: 0 3px 12px var(--shadow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.38;
+      transition: opacity 0.2s, box-shadow 0.2s;
+    }
+    .wake-lock-btn.active {
+      opacity: 1;
+      box-shadow: 0 3px 18px rgba(255,211,42,0.55);
+    }
+    .wake-lock-btn.unavailable { display: none; }
     .focus-stars {
       font-family: 'Fredoka One', sans-serif;
       font-size: 1.3rem;
@@ -678,6 +696,7 @@
     <div class="focus-header">
       <button class="pause-btn" id="pause-btn" onclick="togglePause()">⏸️</button>
       <div class="focus-stars" id="focus-stars">⭐ 0</div>
+      <button class="wake-lock-btn" id="wake-lock-btn" onclick="toggleWakeLock()" title="Keep screen on">☀️</button>
     </div>
 
     <div class="timer-ring-wrap">
@@ -860,6 +879,8 @@ const state = {
   _pendingNewDay:   null,
   _focusTaskLabel:  null,
   _celebrateTask:   null,
+  wakeLockEnabled:  false,
+  wakeLock:         null,
 };
 
 /* ═══════════════════════════════════════════════════════
@@ -953,6 +974,7 @@ function restoreTimerIfActive() {
     state.timerRemaining  = remaining;
     state.breakDuration   = t.breakSecs;
     state._focusTaskLabel = t.taskLabel;
+    swMessage({ type: 'TIMER_START', endTime: state.endTime });
     showScreen('focus');
   } catch(e) {}
 }
@@ -1008,12 +1030,15 @@ setInterval(pollDayChange, 60 * 1000);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
     pollDayChange();
-    // Resync timer display immediately on return — catches any throttled ticks
     if (state.endTime && !state.sessionPaused) {
       state.timerRemaining = Math.max(0, Math.ceil((state.endTime - Date.now()) / 1000));
       updateTimerDisplay();
       updateTimerColor();
+      requestWakeLock();
     }
+  } else {
+    // Tab hidden — wake lock auto-releases; SW timer is already set
+    state.wakeLock = null;
   }
 });
 
@@ -1197,6 +1222,8 @@ function startFocusTimer() {
   state.sessionPaused  = false;
   document.getElementById('pause-btn').textContent = '⏸️';
   document.getElementById('focus-stars').textContent = `⭐ ${state.starsToday}`;
+  initWakeLockBtn();
+  requestWakeLock();
 
   const taskEl = document.getElementById('current-task');
   taskEl.textContent = state._focusTaskLabel
@@ -1204,6 +1231,8 @@ function startFocusTimer() {
     : 'Working hard! 🌟';
 
   updateTimerDisplay();
+
+  swMessage({ type: 'TIMER_START', endTime: state.endTime });
 
   if (state.soundEnabled) {
     playChime('start');
@@ -1225,6 +1254,8 @@ function startFocusTimer() {
       clearInterval(state.encourageInterval);
       state.endTime = null;
       persistTimerState();
+      swMessage({ type: 'TIMER_CANCEL' });
+      releaseWakeLock();
       awardStar(1, true);
       stopAmbientSound();
       playCompletionSound();
@@ -1275,15 +1306,17 @@ function togglePause() {
   state.sessionPaused = !state.sessionPaused;
   document.getElementById('pause-btn').textContent = state.sessionPaused ? '▶️' : '⏸️';
   if (state.sessionPaused) {
-    // Freeze remaining time and clear endTime so background timer doesn't drift
     state.timerRemaining = Math.max(0, Math.ceil((state.endTime - Date.now()) / 1000));
     state.endTime = null;
     persistTimerState();
+    swMessage({ type: 'TIMER_CANCEL' });
+    releaseWakeLock();
     stopAmbientSound();
   } else {
-    // Resume: anchor a new endTime from current remaining
     state.endTime = Date.now() + state.timerRemaining * 1000;
     persistTimerState();
+    swMessage({ type: 'TIMER_START', endTime: state.endTime });
+    requestWakeLock();
     if (state.soundEnabled) startAmbientSound();
   }
 }
@@ -1293,6 +1326,8 @@ function endSession() {
   clearInterval(state.encourageInterval);
   state.endTime = null;
   persistTimerState();
+  swMessage({ type: 'TIMER_CANCEL' });
+  releaseWakeLock();
   stopAmbientSound();
   state._breakFromTask = true;
   state.breakDuration  = 60;
@@ -1677,6 +1712,45 @@ function toggleSound() {
 }
 
 /* ═══════════════════════════════════════════════════════
+   SERVICE WORKER MESSAGING
+═══════════════════════════════════════════════════════ */
+async function swMessage(data) {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (reg.active) reg.active.postMessage(data);
+  } catch(e) {}
+}
+
+/* ═══════════════════════════════════════════════════════
+   WAKE LOCK
+═══════════════════════════════════════════════════════ */
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator) || !state.wakeLockEnabled) return;
+  try {
+    state.wakeLock = await navigator.wakeLock.request('screen');
+    state.wakeLock.addEventListener('release', () => { state.wakeLock = null; });
+    document.getElementById('wake-lock-btn').classList.add('active');
+  } catch(e) { state.wakeLock = null; }
+}
+
+function releaseWakeLock() {
+  if (state.wakeLock) { try { state.wakeLock.release(); } catch(e) {} state.wakeLock = null; }
+  document.getElementById('wake-lock-btn').classList.remove('active');
+}
+
+function toggleWakeLock() {
+  state.wakeLockEnabled = !state.wakeLockEnabled;
+  if (state.wakeLockEnabled) requestWakeLock();
+  else releaseWakeLock();
+}
+
+function initWakeLockBtn() {
+  const btn = document.getElementById('wake-lock-btn');
+  if (!('wakeLock' in navigator)) btn.classList.add('unavailable');
+}
+
+/* ═══════════════════════════════════════════════════════
    COPY COMPLETED TASKS
 ═══════════════════════════════════════════════════════ */
 function copyCompletedTasks() {
@@ -1722,9 +1796,11 @@ document.getElementById('new-item-input').addEventListener('keydown', e => {
   state.currentUser = (savedUser === 'adult') ? 'adult' : 'kid';
   applyTheme();
   initFromStorage();
-  // Must call onEnterHome first so screens exist, then check for active timer
   onEnterHome();
   restoreTimerIfActive();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
 })();
 </script>
 </body>
