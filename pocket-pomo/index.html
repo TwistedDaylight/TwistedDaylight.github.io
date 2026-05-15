@@ -990,7 +990,7 @@ function restoreTimerIfActive() {
     state.timerRemaining  = remaining;
     state.breakDuration   = t.breakSecs;
     state._focusTaskLabel = t.taskLabel;
-    swMessage({ type: 'TIMER_START', endTime: state.endTime });
+    swMessage({ type: 'TIMER_START', endTime: state.endTime, title: '🍅 Pomo done!', body: 'Great work — time for a break!' });
     writeTimerFile(state.endTime, state._focusTaskLabel);
     showScreen('focus');
   } catch(e) {}
@@ -1052,6 +1052,13 @@ document.addEventListener('visibilitychange', () => {
       updateTimerDisplay();
       updateTimerColor();
       requestWakeLock();
+    }
+    if (state.breakEndTime && !state.breakPaused) {
+      state.breakRemaining = Math.max(0, Math.ceil((state.breakEndTime - Date.now()) / 1000));
+      document.getElementById('break-timer-num').textContent = formatBreakTime(state.breakRemaining);
+      const bRing = document.getElementById('break-fill-ring');
+      if (bRing) bRing.style.strokeDashoffset = BREAK_CIRC * (1 - state.breakRemaining / state.breakDuration);
+      if (state.breakRemaining <= 0) { clearInterval(state.breakInterval); endBreak(); }
     }
   } else {
     // Tab hidden — wake lock auto-releases; SW timer is already set
@@ -1250,7 +1257,7 @@ function startFocusTimer() {
 
   updateTimerDisplay();
 
-  swMessage({ type: 'TIMER_START', endTime: state.endTime });
+  swMessage({ type: 'TIMER_START', endTime: state.endTime, title: '🍅 Pomo done!', body: 'Great work — time for a break!' });
   writeTimerFile(state.endTime, state._focusTaskLabel);
 
   if (state.soundEnabled) {
@@ -1279,7 +1286,6 @@ function startFocusTimer() {
       awardStar(1, true);
       stopAmbientSound();
       playCompletionSound();
-      notifyDone('🍅 Pomo done!', 'Time for a break — great work!');
       showScreen('break');
     }
   }, 1000);
@@ -1391,6 +1397,8 @@ function startBreakTimer() {
   document.getElementById('break-desc').textContent     = b.desc;
 
   state.breakRemaining = state.breakDuration;
+  state.breakEndTime = Date.now() + state.breakDuration * 1000;
+  swMessage({ type: 'TIMER_START', endTime: state.breakEndTime, title: '🚀 Break over!', body: 'Ready to focus again?' });
   const ring = document.getElementById('break-fill-ring');
   ring.style.strokeDasharray  = BREAK_CIRC;
   ring.style.strokeDashoffset = '0';
@@ -1399,7 +1407,7 @@ function startBreakTimer() {
   clearInterval(state.breakInterval);
   state.breakInterval = setInterval(() => {
     if (state.breakPaused) return;
-    state.breakRemaining--;
+    state.breakRemaining = Math.max(0, Math.ceil((state.breakEndTime - Date.now()) / 1000));
     const pct = state.breakRemaining / state.breakDuration;
     ring.style.strokeDashoffset = BREAK_CIRC * (1 - pct);
     document.getElementById('break-timer-num').textContent = formatBreakTime(state.breakRemaining);
@@ -1421,12 +1429,13 @@ function toggleBreakPause() {
 
 function endBreak() {
   clearInterval(state.breakInterval);
+  swMessage({ type: 'TIMER_CANCEL' });
+  state.breakEndTime = null;
   if (state._breakFromTask) {
     state._breakFromTask = false;
     showScreen('home');
     return;
   }
-  notifyDone('🚀 Break over!', 'Ready to focus again?');
   if (state.soundEnabled) playChime('start');
   showContinueModal();
 }
