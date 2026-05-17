@@ -7,7 +7,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Pocket Pomo" />
   <meta name="theme-color" content="#D94E37" />
-  <link rel="manifest" href="manifest.json" />
   <title>Pocket Pomo</title>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet" />
   <style>
@@ -365,16 +364,6 @@
       border-radius: 12px;
       border: 2px solid #E0D8CC;
     }
-    .termux-link-btn {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--muted);
-      background: none;
-      padding: 8px 16px;
-      border-radius: 12px;
-      border: 2px solid #E0D8CC;
-    }
-    .termux-link-btn.linked { color: var(--mint); border-color: var(--mint); }
 
     /* ── FOCUS SCREEN ──────────────────────────────────── */
     #screen-focus { background: var(--cream); justify-content: space-between; padding-top: 16px; }
@@ -395,23 +384,6 @@
       align-items: center;
       justify-content: center;
     }
-    .wake-lock-btn {
-      font-size: 1.5rem;
-      background: white;
-      width: 54px; height: 54px;
-      border-radius: 50%;
-      box-shadow: 0 3px 12px var(--shadow);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0.38;
-      transition: opacity 0.2s, box-shadow 0.2s;
-    }
-    .wake-lock-btn.active {
-      opacity: 1;
-      box-shadow: 0 3px 18px rgba(255,211,42,0.55);
-    }
-    .wake-lock-btn.unavailable { display: none; }
     .focus-stars {
       font-family: 'Fredoka One', sans-serif;
       font-size: 1.3rem;
@@ -698,11 +670,6 @@
       🔇 Focus Sounds: OFF
     </button>
 
-    <button class="termux-link-btn" id="termux-link-btn"
-            onclick="handleTermuxBtn()" style="display:none">
-      📁 Link Termux file
-    </button>
-
   </div><!-- /screen-home -->
 
   <!-- ══ FOCUS SCREEN ═════════════════════════════════════ -->
@@ -711,7 +678,6 @@
     <div class="focus-header">
       <button class="pause-btn" id="pause-btn" onclick="togglePause()">⏸️</button>
       <div class="focus-stars" id="focus-stars">⭐ 0</div>
-      <button class="wake-lock-btn" id="wake-lock-btn" onclick="toggleWakeLock()" title="Keep screen on">☀️</button>
     </div>
 
     <div class="timer-ring-wrap">
@@ -894,9 +860,6 @@ const state = {
   _pendingNewDay:   null,
   _focusTaskLabel:  null,
   _celebrateTask:   null,
-  wakeLockEnabled:  false,
-  wakeLock:         null,
-  timerFileHandle:  null,
 };
 
 /* ═══════════════════════════════════════════════════════
@@ -990,8 +953,6 @@ function restoreTimerIfActive() {
     state.timerRemaining  = remaining;
     state.breakDuration   = t.breakSecs;
     state._focusTaskLabel = t.taskLabel;
-    swMessage({ type: 'TIMER_START', endTime: state.endTime, title: '🍅 Pomo done!', body: 'Great work — time for a break!' });
-    writeTimerFile(state.endTime, state._focusTaskLabel);
     showScreen('focus');
   } catch(e) {}
 }
@@ -1047,22 +1008,12 @@ setInterval(pollDayChange, 60 * 1000);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
     pollDayChange();
+    // Resync timer display immediately on return — catches any throttled ticks
     if (state.endTime && !state.sessionPaused) {
       state.timerRemaining = Math.max(0, Math.ceil((state.endTime - Date.now()) / 1000));
       updateTimerDisplay();
       updateTimerColor();
-      requestWakeLock();
     }
-    if (state.breakEndTime && !state.breakPaused) {
-      state.breakRemaining = Math.max(0, Math.ceil((state.breakEndTime - Date.now()) / 1000));
-      document.getElementById('break-timer-num').textContent = formatBreakTime(state.breakRemaining);
-      const bRing = document.getElementById('break-fill-ring');
-      if (bRing) bRing.style.strokeDashoffset = BREAK_CIRC * (1 - state.breakRemaining / state.breakDuration);
-      if (state.breakRemaining <= 0) { clearInterval(state.breakInterval); endBreak(); }
-    }
-  } else {
-    // Tab hidden — wake lock auto-releases; SW timer is already set
-    state.wakeLock = null;
   }
 });
 
@@ -1224,11 +1175,10 @@ function renderChecklist() {
 /* ═══════════════════════════════════════════════════════
    FOCUS TIMER
 ═══════════════════════════════════════════════════════ */
-async function beginFocus() {
+function beginFocus() {
   const pending = state.items.find(i => !i.done);
   state._focusTaskLabel = pending ? pending.text : null;
   requestNotifPermission();
-  await ensureTimerFilePermission();
   showScreen('focus');
 }
 
@@ -1247,8 +1197,6 @@ function startFocusTimer() {
   state.sessionPaused  = false;
   document.getElementById('pause-btn').textContent = '⏸️';
   document.getElementById('focus-stars').textContent = `⭐ ${state.starsToday}`;
-  initWakeLockBtn();
-  requestWakeLock();
 
   const taskEl = document.getElementById('current-task');
   taskEl.textContent = state._focusTaskLabel
@@ -1256,9 +1204,6 @@ function startFocusTimer() {
     : 'Working hard! 🌟';
 
   updateTimerDisplay();
-
-  swMessage({ type: 'TIMER_START', endTime: state.endTime, title: '🍅 Pomo done!', body: 'Great work — time for a break!' });
-  writeTimerFile(state.endTime, state._focusTaskLabel);
 
   if (state.soundEnabled) {
     playChime('start');
@@ -1280,12 +1225,10 @@ function startFocusTimer() {
       clearInterval(state.encourageInterval);
       state.endTime = null;
       persistTimerState();
-      swMessage({ type: 'TIMER_CANCEL' });
-      clearTimerFile();
-      releaseWakeLock();
       awardStar(1, true);
       stopAmbientSound();
       playCompletionSound();
+      notifyDone('🍅 Pomo done!', 'Time for a break — great work!');
       showScreen('break');
     }
   }, 1000);
@@ -1332,19 +1275,15 @@ function togglePause() {
   state.sessionPaused = !state.sessionPaused;
   document.getElementById('pause-btn').textContent = state.sessionPaused ? '▶️' : '⏸️';
   if (state.sessionPaused) {
+    // Freeze remaining time and clear endTime so background timer doesn't drift
     state.timerRemaining = Math.max(0, Math.ceil((state.endTime - Date.now()) / 1000));
     state.endTime = null;
     persistTimerState();
-    swMessage({ type: 'TIMER_CANCEL' });
-    clearTimerFile();
-    releaseWakeLock();
     stopAmbientSound();
   } else {
+    // Resume: anchor a new endTime from current remaining
     state.endTime = Date.now() + state.timerRemaining * 1000;
     persistTimerState();
-    swMessage({ type: 'TIMER_START', endTime: state.endTime });
-    writeTimerFile(state.endTime, state._focusTaskLabel);
-    requestWakeLock();
     if (state.soundEnabled) startAmbientSound();
   }
 }
@@ -1354,9 +1293,6 @@ function endSession() {
   clearInterval(state.encourageInterval);
   state.endTime = null;
   persistTimerState();
-  swMessage({ type: 'TIMER_CANCEL' });
-  clearTimerFile();
-  releaseWakeLock();
   stopAmbientSound();
   state._breakFromTask = true;
   state.breakDuration  = 60;
@@ -1397,8 +1333,6 @@ function startBreakTimer() {
   document.getElementById('break-desc').textContent     = b.desc;
 
   state.breakRemaining = state.breakDuration;
-  state.breakEndTime = Date.now() + state.breakDuration * 1000;
-  swMessage({ type: 'TIMER_START', endTime: state.breakEndTime, title: '🚀 Break over!', body: 'Ready to focus again?' });
   const ring = document.getElementById('break-fill-ring');
   ring.style.strokeDasharray  = BREAK_CIRC;
   ring.style.strokeDashoffset = '0';
@@ -1407,7 +1341,7 @@ function startBreakTimer() {
   clearInterval(state.breakInterval);
   state.breakInterval = setInterval(() => {
     if (state.breakPaused) return;
-    state.breakRemaining = Math.max(0, Math.ceil((state.breakEndTime - Date.now()) / 1000));
+    state.breakRemaining--;
     const pct = state.breakRemaining / state.breakDuration;
     ring.style.strokeDashoffset = BREAK_CIRC * (1 - pct);
     document.getElementById('break-timer-num').textContent = formatBreakTime(state.breakRemaining);
@@ -1429,13 +1363,12 @@ function toggleBreakPause() {
 
 function endBreak() {
   clearInterval(state.breakInterval);
-  swMessage({ type: 'TIMER_CANCEL' });
-  state.breakEndTime = null;
   if (state._breakFromTask) {
     state._breakFromTask = false;
     showScreen('home');
     return;
   }
+  notifyDone('🚀 Break over!', 'Ready to focus again?');
   if (state.soundEnabled) playChime('start');
   showContinueModal();
 }
@@ -1744,144 +1677,6 @@ function toggleSound() {
 }
 
 /* ═══════════════════════════════════════════════════════
-   TERMUX FILE BRIDGE  (File System Access API)
-   Writes endTime to a JSON file that pomo-watch.py reads
-   from Termux to fire a native notification.
-═══════════════════════════════════════════════════════ */
-
-/* Minimal IndexedDB helpers — FileSystemFileHandle can't go in localStorage */
-function _idbOpen() {
-  return new Promise((res, rej) => {
-    const r = indexedDB.open('pp-meta', 1);
-    r.onupgradeneeded = e => e.target.result.createObjectStore('kv');
-    r.onsuccess = e => res(e.target.result);
-    r.onerror = rej;
-  });
-}
-async function _idbGet(key) {
-  const db = await _idbOpen();
-  return new Promise((res, rej) => {
-    const req = db.transaction('kv').objectStore('kv').get(key);
-    req.onsuccess = () => res(req.result);
-    req.onerror = rej;
-  });
-}
-async function _idbSet(key, val) {
-  const db = await _idbOpen();
-  return new Promise((res, rej) => {
-    const tx = db.transaction('kv', 'readwrite');
-    tx.objectStore('kv').put(val, key);
-    tx.oncomplete = res;
-    tx.onerror = rej;
-  });
-}
-
-async function writeTimerFile(endTime, task) {
-  if (!state.timerFileHandle) return;
-  try {
-    const w = await state.timerFileHandle.createWritable();
-    await w.write(JSON.stringify({ endTime, task: task || '' }));
-    await w.close();
-  } catch(e) {}
-}
-
-function clearTimerFile() { writeTimerFile(0, ''); }
-
-async function ensureTimerFilePermission() {
-  if (!state.timerFileHandle) return;
-  try {
-    let p = await state.timerFileHandle.queryPermission({ mode: 'readwrite' });
-    if (p === 'prompt') p = await state.timerFileHandle.requestPermission({ mode: 'readwrite' });
-    if (p !== 'granted') { state.timerFileHandle = null; _updateTermuxBtn(); }
-  } catch(e) { state.timerFileHandle = null; _updateTermuxBtn(); }
-}
-
-async function linkTermuxFile() {
-  try {
-    const h = await window.showSaveFilePicker({
-      suggestedName: 'pomo-timer.json',
-      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
-    });
-    state.timerFileHandle = h;
-    await _idbSet('timerFileHandle', h);
-    _updateTermuxBtn();
-  } catch(e) { if (e.name !== 'AbortError') console.error(e); }
-}
-
-async function handleTermuxBtn() {
-  if (state.timerFileHandle) {
-    if (confirm('Unlink Termux notification file?')) {
-      state.timerFileHandle = null;
-      try { await _idbSet('timerFileHandle', undefined); } catch(e) {}
-      _updateTermuxBtn();
-    }
-  } else {
-    await linkTermuxFile();
-  }
-}
-
-function _updateTermuxBtn() {
-  const btn = document.getElementById('termux-link-btn');
-  if (!btn) return;
-  if (state.timerFileHandle) {
-    btn.textContent = '📁 Termux: linked ✓';
-    btn.classList.add('linked');
-  } else {
-    btn.textContent = '📁 Link Termux file';
-    btn.classList.remove('linked');
-  }
-}
-
-async function restoreTimerFileHandle() {
-  if (!('showSaveFilePicker' in window)) return;
-  const btn = document.getElementById('termux-link-btn');
-  if (btn) btn.style.display = '';       // reveal — API is available
-  try {
-    const h = await _idbGet('timerFileHandle');
-    if (h) { state.timerFileHandle = h; _updateTermuxBtn(); }
-  } catch(e) {}
-}
-
-/* ═══════════════════════════════════════════════════════
-   SERVICE WORKER MESSAGING
-═══════════════════════════════════════════════════════ */
-async function swMessage(data) {
-  if (!('serviceWorker' in navigator)) return;
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    if (reg.active) reg.active.postMessage(data);
-  } catch(e) {}
-}
-
-/* ═══════════════════════════════════════════════════════
-   WAKE LOCK
-═══════════════════════════════════════════════════════ */
-async function requestWakeLock() {
-  if (!('wakeLock' in navigator) || !state.wakeLockEnabled) return;
-  try {
-    state.wakeLock = await navigator.wakeLock.request('screen');
-    state.wakeLock.addEventListener('release', () => { state.wakeLock = null; });
-    document.getElementById('wake-lock-btn').classList.add('active');
-  } catch(e) { state.wakeLock = null; }
-}
-
-function releaseWakeLock() {
-  if (state.wakeLock) { try { state.wakeLock.release(); } catch(e) {} state.wakeLock = null; }
-  document.getElementById('wake-lock-btn').classList.remove('active');
-}
-
-function toggleWakeLock() {
-  state.wakeLockEnabled = !state.wakeLockEnabled;
-  if (state.wakeLockEnabled) requestWakeLock();
-  else releaseWakeLock();
-}
-
-function initWakeLockBtn() {
-  const btn = document.getElementById('wake-lock-btn');
-  if (!('wakeLock' in navigator)) btn.classList.add('unavailable');
-}
-
-/* ═══════════════════════════════════════════════════════
    COPY COMPLETED TASKS
 ═══════════════════════════════════════════════════════ */
 function copyCompletedTasks() {
@@ -1927,12 +1722,9 @@ document.getElementById('new-item-input').addEventListener('keydown', e => {
   state.currentUser = (savedUser === 'adult') ? 'adult' : 'kid';
   applyTheme();
   initFromStorage();
+  // Must call onEnterHome first so screens exist, then check for active timer
   onEnterHome();
   restoreTimerIfActive();
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
-  }
-  restoreTimerFileHandle();
 })();
 </script>
 </body>
