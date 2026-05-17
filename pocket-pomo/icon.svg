@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 112">
+  <!-- Bow ring at top -->
+  <path d="M44,14 Q44,3 50,3 Q56,3 56,14" fill="none" stroke="#e8b84b" stroke-width="4" stroke-linecap="round"/>
+  <!-- Stem -->
+  <rect x="46" y="12" width="8" height="12" rx="2" fill="#e8b84b"/>
+  <!-- Watch case -->
+  <circle cx="50" cy="66" r="43" fill="#D94E37"/>
+  <!-- Gold bezel -->
+  <circle cx="50" cy="66" r="43" fill="none" stroke="#e8b84b" stroke-width="4"/>
+  <!-- Watch face -->
+  <circle cx="50" cy="66" r="35" fill="#fff8ee"/>
+  <!-- Inner bezel ring -->
+  <circle cx="50" cy="66" r="35" fill="none" stroke="#e8b84b" stroke-width="1.5"/>
+  <!-- Hour markers: 12, 3, 6, 9 -->
+  <rect x="48" y="32" width="4" height="8" rx="1" fill="#8b2215"/>
+  <rect x="79" y="64" width="8" height="4" rx="1" fill="#8b2215"/>
+  <rect x="48" y="92" width="4" height="8" rx="1" fill="#8b2215"/>
+  <rect x="13" y="64" width="8" height="4" rx="1" fill="#8b2215"/>
+  <!-- Hour hand (at 12) -->
+  <line x1="50" y1="66" x2="50" y2="47" stroke="#1a1a2e" stroke-width="4" stroke-linecap="round"/>
+  <!-- Minute hand (at 5 = 25 min) -->
+  <line x1="50" y1="66" x2="62" y2="87" stroke="#1a1a2e" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Centre cap -->
+  <circle cx="50" cy="66" r="3.5" fill="#D94E37"/>
+  <circle cx="50" cy="66" r="1.5" fill="#e8b84b"/>
+</svg>
