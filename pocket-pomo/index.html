@@ -238,8 +238,9 @@
       border-color: var(--mint);
       background: #F0FFF4;
       opacity: 0.72;
-      cursor: default;
+      cursor: pointer;
     }
+    .checklist-item.done:hover { opacity: 0.9; }
     .checklist-checkbox {
       width: 36px; height: 36px;
       border-radius: 50%;
@@ -1126,12 +1127,29 @@ function addChecklistItem() {
 
 function toggleItem(id) {
   const item = state.items.find(i => i.id === id);
-  if (!item || item.done) return;
-  item.done = true;
+  if (!item) return;
+  if (item.done) {
+    item.done = false;
+  } else {
+    item.done = true;
+    awardStar(3, true);
+    recordActiveToday();
+  }
   saveData();
   renderChecklist();
-  awardStar(3, true);
-  recordActiveToday();
+}
+
+function promoteItem(id) {
+  const idx = state.items.findIndex(i => i.id === id);
+  if (idx < 0) return;
+  const item = state.items[idx];
+  if (item.done) return;
+  state.items.splice(idx, 1);
+  const firstUndone = state.items.findIndex(i => !i.done);
+  state.items.splice(firstUndone === -1 ? 0 : firstUndone, 0, item);
+  if (navigator.vibrate) navigator.vibrate(50);
+  saveData();
+  renderChecklist();
 }
 
 function deleteItem(id) {
@@ -1163,13 +1181,23 @@ function renderChecklist() {
     div.appendChild(check);
     div.appendChild(label);
 
-    if (!item.done) {
+    if (item.done) {
+      div.onclick = () => toggleItem(item.id);
+    } else {
       const del = document.createElement('button');
       del.className = 'delete-item-btn';
       del.textContent = '✕';
       del.onclick = e => { e.stopPropagation(); deleteItem(item.id); };
       div.appendChild(del);
-      div.onclick = () => toggleItem(item.id);
+
+      let lpTimer = null, lpFired = false;
+      div.addEventListener('touchstart', () => {
+        lpFired = false;
+        lpTimer = setTimeout(() => { lpFired = true; promoteItem(item.id); }, 500);
+      }, { passive: true });
+      div.addEventListener('touchend',  () => clearTimeout(lpTimer));
+      div.addEventListener('touchmove', () => clearTimeout(lpTimer), { passive: true });
+      div.onclick = () => { if (lpFired) { lpFired = false; return; } toggleItem(item.id); };
     }
     container.appendChild(div);
   });
