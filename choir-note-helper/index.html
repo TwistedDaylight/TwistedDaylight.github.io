@@ -65,8 +65,14 @@ const CLEFS = {
     spaces: ["F4","A4","C5","E5"],
     ledgerBelow: ["C4","D4"], ledgerAbove: ["G5","A5"],
   },
+  tenor: {
+    label: "Tenor Clef", subtitle: "Tenor",
+    lines: ["E4","G4","B4","D5","F5"],
+    spaces: ["F4","A4","C5","E5"],
+    ledgerBelow: ["C4","D4"], ledgerAbove: ["G5","A5"],
+  },
   bass: {
-    label: "Bass Clef", subtitle: "Tenor / Bass",
+    label: "Bass Clef", subtitle: "Baritone / Bass",
     lines: ["G2","B2","D3","F3","A3"],
     spaces: ["A2","C3","E3","G3"],
     ledgerBelow: ["E2","F2"], ledgerAbove: ["B3","C4"],
@@ -89,6 +95,15 @@ const TREBLE_GUITAR = [
   { name: "D", open: 62 },
   { name: "A", open: 57 },
   { name: "E", open: 52 },
+];
+// Tenor guitar uses actual sounding pitches (tenor clef sounds an octave lower than written)
+const TENOR_GUITAR = [
+  { name: "e", open: 64 },
+  { name: "B", open: 59 },
+  { name: "G", open: 55 },
+  { name: "D", open: 50 },
+  { name: "A", open: 45 },
+  { name: "E", open: 40 },
 ];
 const BASS_GUITAR = [
   { name: "G", open: 43 },
@@ -130,9 +145,9 @@ function App() {
   const canFlat  = noteLetter && !NO_FLAT.has(noteLetter);
   const effectiveAcc = (accidental==="sharp"&&!canSharp)||(accidental==="flat"&&!canFlat) ? "natural" : accidental;
 
-  const guitarStrings = clef === "treble" ? TREBLE_GUITAR : BASS_GUITAR;
+  const guitarStrings = clef === "treble" ? TREBLE_GUITAR : clef === "tenor" ? TENOR_GUITAR : BASS_GUITAR;
   const effectiveMidi = selectedNote && NOTE_MIDI[selectedNote]
-    ? NOTE_MIDI[selectedNote] + (effectiveAcc==="sharp"?1:effectiveAcc==="flat"?-1:0)
+    ? NOTE_MIDI[selectedNote] + (effectiveAcc==="sharp"?1:effectiveAcc==="flat"?-1:0) + (clef==="tenor"?-12:0)
     : null;
   const guitarPositions = getGuitarPositions(effectiveMidi, guitarStrings);
   const aboveFretRange = !!selectedNote && guitarPositions.length === 0;
@@ -219,8 +234,11 @@ function App() {
   const triggerPlay = (note, acc) => {
     const letter = note.replace(/\d/,"");
     const validAcc = (acc==="sharp"&&NO_SHARP.has(letter))||(acc==="flat"&&NO_FLAT.has(letter)) ? "natural" : acc;
-    const freq = getFreq(note, validAcc);
-    playFreq(freq, clef === "bass");
+    const midi = NOTE_MIDI[note];
+    if (!midi) return;
+    const accShift = validAcc==="sharp" ? 1 : validAcc==="flat" ? -1 : 0;
+    const octaveShift = clef === "tenor" ? -12 : 0;
+    playFreq(midiToFreq(midi + accShift + octaveShift), clef === "bass");
   };
 
   const handleNoteClick = (note) => { setSelectedNote(note); triggerPlay(note, accidental); };
@@ -249,8 +267,8 @@ function App() {
     page: { minHeight:"100vh", background:"#fdf6e3", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"20px 14px" },
     h1: { fontSize:24, fontWeight:700, color:"#2c1810", margin:0 },
     sub: { color:"#7a6245", fontSize:13, marginTop:6, maxWidth:300, textAlign:"center" },
-    clefRow: { display:"flex", gap:10, marginBottom:18 },
-    clefBtn: (active) => ({ padding:"8px 18px", borderRadius:30, border:"2px solid", borderColor:active?"#8b4513":"#c9b99a", background:active?"#8b4513":"#fdf6e3", color:active?"#fdf6e3":"#5a3e28", fontSize:13, fontWeight:600, cursor:"pointer" }),
+    clefRow: { display:"flex", gap:8, marginBottom:18, flexWrap:"wrap", justifyContent:"center" },
+    clefBtn: (active) => ({ padding:"7px 14px", borderRadius:30, border:"2px solid", borderColor:active?"#8b4513":"#c9b99a", background:active?"#8b4513":"#fdf6e3", color:active?"#fdf6e3":"#5a3e28", fontSize:13, fontWeight:600, cursor:"pointer", textAlign:"center" }),
     staffWrap: { background:"#fff8e8", borderRadius:16, boxShadow:"0 4px 24px rgba(100,60,20,0.10)", padding:"8px 6px", marginBottom:14, border:"1.5px solid #e8d5b0" },
     accRow: { display:"flex", gap:8, marginBottom:14, alignItems:"center", flexWrap:"wrap", justifyContent:"center" },
     accBtn: (active, disabled) => ({ padding:"7px 14px", borderRadius:20, border:"2px solid", borderColor:active?"#8b4513":disabled?"#ddd":"#c9b99a", background:active?"#8b4513":disabled?"#f0ece4":"#fdf6e3", color:active?"#fdf6e3":disabled?"#bbb":"#5a3e28", fontSize:14, fontWeight:600, cursor:disabled?"not-allowed":"pointer", opacity:disabled?0.6:1 }),
@@ -270,9 +288,9 @@ function App() {
       </div>
 
       <div style={S.clefRow}>
-        {["treble","bass"].map(c=>(
+        {["treble","tenor","bass"].map(c=>(
           <button key={c} style={S.clefBtn(clef===c)} onClick={()=>{setClef(c);setSelectedNote(null);setAccidental("natural");}}>
-            <span style={{fontSize:15,marginRight:4}}>{c==="treble"?"𝄞":"𝄢"}</span>
+            <span style={{fontSize:15,marginRight:4}}>{c==="bass"?"𝄢":"𝄞"}{c==="tenor"&&<span style={{fontSize:10,verticalAlign:"sub"}}>8</span>}</span>
             {CLEFS[c].label}
             <div style={{fontSize:10,opacity:0.75,fontWeight:400}}>{CLEFS[c].subtitle}</div>
           </button>
@@ -292,7 +310,12 @@ function App() {
             <line x1={staffLeft+staffWidth/2-18} x2={staffLeft+staffWidth/2+18} y1={slotToY(8,staffTop,slotHeight)} y2={slotToY(8,staffTop,slotHeight)} stroke="#8b4513" strokeWidth={1.5} strokeDasharray="3,2"/>
             {selectedSlot===10&&<line x1={staffLeft+staffWidth/2-18} x2={staffLeft+staffWidth/2+18} y1={slotToY(10,staffTop,slotHeight)} y2={slotToY(10,staffTop,slotHeight)} stroke="#8b4513" strokeWidth={1.5}/>}
           </>)}
-          <text x={staffLeft+8} y={slotToY(clef==="treble"?4:6,staffTop,slotHeight)+(clef==="treble"?22:6)} fontSize={clef==="treble"?62:36} fill="#5a3e28" fontFamily="serif" opacity={0.85}>{clef==="treble"?"𝄞":"𝄢"}</text>
+          {clef==="tenor" ? (<>
+            <text x={staffLeft+8} y={slotToY(4,staffTop,slotHeight)+22} fontSize={62} fill="#5a3e28" fontFamily="serif" opacity={0.85}>𝄞</text>
+            <text x={staffLeft+14} y={slotToY(0,staffTop,slotHeight)+18} fontSize={12} fontWeight="bold" fill="#5a3e28" fontFamily="serif" opacity={0.85}>8</text>
+          </>) : (
+            <text x={staffLeft+8} y={slotToY(clef==="treble"?4:6,staffTop,slotHeight)+(clef==="treble"?22:6)} fontSize={clef==="treble"?62:36} fill="#5a3e28" fontFamily="serif" opacity={0.85}>{clef==="treble"?"𝄞":"𝄢"}</text>
+          )}
           {selectedSlot!==null&&effectiveAcc!=="natural"&&(
             <text x={staffLeft+staffWidth/2-24} y={slotToY(selectedSlot,staffTop,slotHeight)+6} fontSize={17} fill="#8b4513" fontFamily="serif" textAnchor="middle">{effectiveAcc==="sharp"?"♯":"♭"}</text>
           )}
@@ -302,7 +325,7 @@ function App() {
               <g key={note} onClick={()=>handleNoteClick(note)} style={{cursor:"pointer"}}>
                 <rect x={staffLeft+50} y={cy-slotHeight/2} width={staffWidth-60} height={slotHeight} fill="transparent"/>
                 {isSel&&<ellipse cx={staffLeft+staffWidth/2} cy={cy} rx={13} ry={9} fill={playing?"#d4622a":"#8b4513"} style={{transition:"fill 0.2s"}}/>}
-                <text x={staffLeft+staffWidth+6} y={cy+4} fontSize={10} fill={isSel?"#8b4513":"#c4a882"} fontFamily="Georgia,serif" fontWeight={isSel?"700":"400"}>{note}</text>
+                <text x={staffLeft+staffWidth+6} y={cy+4} fontSize={10} fill={isSel?"#8b4513":"#c4a882"} fontFamily="Georgia,serif" fontWeight={isSel?"700":"400"}>{clef==="tenor"?note.replace(/(\d+)$/,n=>String(Number(n)-1)):note}</text>
               </g>
             );
           })}
@@ -320,7 +343,9 @@ function App() {
 
       <div style={S.result(!!selectedNote)}>
         {selectedNote ? (<>
-          <div style={{fontSize:11,color:"#a07850",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:2}}>{clef==="treble"?"Treble":"Bass"} Clef · {selectedNote}</div>
+          <div style={{fontSize:11,color:"#a07850",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:2}}>
+            {clef==="treble"?"Treble":clef==="tenor"?"Tenor (8vb)":"Bass"} Clef · {clef==="tenor" ? selectedNote.replace(/(\d+)$/,n=>String(Number(n)-1)) : selectedNote}
+          </div>
           <div style={{fontSize:54,fontWeight:700,color:"#2c1810",lineHeight:1,marginBottom:4}}>{displayName()}</div>
           {effectiveAcc!=="natural"&&<div style={{fontSize:12,color:"#a07850",marginBottom:6}}>({effectiveAcc==="sharp"?"one semitone higher than ":"one semitone lower than "}{noteLetter})</div>}
           <button style={S.playBtn(playing)} onClick={()=>triggerPlay(selectedNote,accidental)}>
