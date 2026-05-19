@@ -134,8 +134,10 @@ function App() {
   const [selectedNote, setSelectedNote] = useState(null);
   const [accidental, setAccidental] = useState("natural");
   const [playing, setPlaying] = useState(false);
+  const [sustain, setSustain] = useState(false);
   const audioCtxRef = useRef(null);
   const activeNodesRef = useRef([]);
+  const playTimerRef = useRef(null);
 
   const staffTop = 60, slotHeight = 14, staffWidth = 300, svgWidth = 380, svgHeight = 220, staffLeft = 46;
 
@@ -166,7 +168,7 @@ function App() {
     return midiToFreq(midi);
   };
 
-  const playFreq = useCallback((freq, isLow) => {
+  const playFreq = useCallback((freq, isLow, sustained) => {
     if (!freq) return;
     try {
       if (!audioCtxRef.current)
@@ -175,7 +177,7 @@ function App() {
       const doPlay = () => {
         const now = ctx.currentTime;
 
-        // Fade out any currently playing nodes to avoid click/pop on overlap
+        clearTimeout(playTimerRef.current);
         activeNodesRef.current.forEach(({gainNode, osc}) => {
           try {
             gainNode.gain.cancelScheduledValues(now);
@@ -196,7 +198,6 @@ function App() {
           gainNode.connect(ctx.destination);
           gainNode.gain.setValueAtTime(0, now);
           gainNode.gain.linearRampToValueAtTime(0.40, now + 0.06);
-          gainNode.gain.exponentialRampToValueAtTime(0.001, now + 2.2);
           const filter = ctx.createBiquadFilter();
           filter.type = "lowpass";
           filter.frequency.value = 1200;
@@ -207,28 +208,52 @@ function App() {
           osc.frequency.setValueAtTime(freq, now);
           osc.connect(filter);
           osc.start(now);
-          osc.stop(now + 2.2);
+          if (!sustained) {
+            gainNode.gain.exponentialRampToValueAtTime(0.001, now + 2.2);
+            osc.stop(now + 2.2);
+          }
           activeNodesRef.current.push({gainNode, osc});
         } else {
           const gainNode = ctx.createGain();
           gainNode.connect(ctx.destination);
           gainNode.gain.setValueAtTime(0, now);
           gainNode.gain.linearRampToValueAtTime(0.38, now + 0.06);
-          gainNode.gain.exponentialRampToValueAtTime(0.001, now + 2.2);
           const osc = ctx.createOscillator();
           osc.connect(gainNode);
           osc.type = "sine";
           osc.frequency.setValueAtTime(freq, now);
           osc.start(now);
-          osc.stop(now + 2.2);
+          if (!sustained) {
+            gainNode.gain.exponentialRampToValueAtTime(0.001, now + 2.2);
+            osc.stop(now + 2.2);
+          }
           activeNodesRef.current.push({gainNode, osc});
         }
 
         setPlaying(true);
-        setTimeout(() => setPlaying(false), 2200);
+        if (!sustained) {
+          playTimerRef.current = setTimeout(() => setPlaying(false), 2200);
+        }
       };
       ctx.state === "suspended" ? ctx.resume().then(doPlay) : doPlay();
     } catch(e) { console.error(e); }
+  }, []);
+
+  const stopAll = useCallback(() => {
+    const ctx = audioCtxRef.current;
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    clearTimeout(playTimerRef.current);
+    activeNodesRef.current.forEach(({gainNode, osc}) => {
+      try {
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.06);
+        osc.stop(now + 0.07);
+      } catch(e) {}
+    });
+    activeNodesRef.current = [];
+    setPlaying(false);
   }, []);
 
   const triggerPlay = (note, acc) => {
@@ -238,7 +263,7 @@ function App() {
     if (!midi) return;
     const accShift = validAcc==="sharp" ? 1 : validAcc==="flat" ? -1 : 0;
     const octaveShift = clef === "tenor" ? -12 : 0;
-    playFreq(midiToFreq(midi + accShift + octaveShift), clef === "bass");
+    playFreq(midiToFreq(midi + accShift + octaveShift), clef === "bass", sustain);
   };
 
   const handleNoteClick = (note) => { setSelectedNote(note); triggerPlay(note, accidental); };
@@ -267,8 +292,10 @@ function App() {
     page: { minHeight:"100vh", background:"#fdf6e3", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"20px 14px" },
     h1: { fontSize:24, fontWeight:700, color:"#2c1810", margin:0 },
     sub: { color:"#7a6245", fontSize:13, marginTop:6, maxWidth:300, textAlign:"center" },
-    clefRow: { display:"flex", gap:8, marginBottom:18, flexWrap:"wrap", justifyContent:"center" },
-    clefBtn: (active) => ({ padding:"7px 14px", borderRadius:30, border:"2px solid", borderColor:active?"#8b4513":"#c9b99a", background:active?"#8b4513":"#fdf6e3", color:active?"#fdf6e3":"#5a3e28", fontSize:13, fontWeight:600, cursor:"pointer", textAlign:"center" }),
+    clefRow: { display:"flex", gap:8, marginBottom:18, width:"100%", maxWidth:360 },
+    clefBtn: (active) => ({ flex:1, minWidth:0, padding:"8px 6px", borderRadius:14, border:"2px solid", borderColor:active?"#8b4513":"#c9b99a", background:active?"#8b4513":"#fdf6e3", color:active?"#fdf6e3":"#5a3e28", fontSize:11, fontWeight:600, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }),
+    sustainBtn: (active) => ({ padding:"7px 14px", borderRadius:20, border:"2px solid", borderColor:active?"#8b4513":"#c9b99a", background:active?"#8b4513":"#fdf6e3", color:active?"#fdf6e3":"#5a3e28", fontSize:13, fontWeight:600, cursor:"pointer" }),
+    stopBtn: { background:"#a0200a", color:"#fdf6e3", border:"none", borderRadius:30, padding:"9px 24px", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", gap:8 },
     staffWrap: { background:"#fff8e8", borderRadius:16, boxShadow:"0 4px 24px rgba(100,60,20,0.10)", padding:"8px 6px", marginBottom:14, border:"1.5px solid #e8d5b0" },
     accRow: { display:"flex", gap:8, marginBottom:14, alignItems:"center", flexWrap:"wrap", justifyContent:"center" },
     accBtn: (active, disabled) => ({ padding:"7px 14px", borderRadius:20, border:"2px solid", borderColor:active?"#8b4513":disabled?"#ddd":"#c9b99a", background:active?"#8b4513":disabled?"#f0ece4":"#fdf6e3", color:active?"#fdf6e3":disabled?"#bbb":"#5a3e28", fontSize:14, fontWeight:600, cursor:disabled?"not-allowed":"pointer", opacity:disabled?0.6:1 }),
@@ -289,10 +316,11 @@ function App() {
 
       <div style={S.clefRow}>
         {["treble","tenor","bass"].map(c=>(
-          <button key={c} style={S.clefBtn(clef===c)} onClick={()=>{setClef(c);setSelectedNote(null);setAccidental("natural");}}>
-            <span style={{fontSize:15,marginRight:4}}>{c==="bass"?"𝄢":"𝄞"}{c==="tenor"&&<span style={{fontSize:10,verticalAlign:"sub"}}>8</span>}</span>
-            {CLEFS[c].label}
-            <div style={{fontSize:10,opacity:0.75,fontWeight:400}}>{CLEFS[c].subtitle}</div>
+          <button key={c} style={S.clefBtn(clef===c)} onClick={()=>{stopAll();setClef(c);setSelectedNote(null);setAccidental("natural");}}>
+            <span style={{fontSize:24,lineHeight:1}}>
+              {c==="bass"?"𝄢":"𝄞"}{c==="tenor"&&<span style={{fontSize:14,verticalAlign:"sub"}}>8</span>}
+            </span>
+            <span style={{lineHeight:1.25,textAlign:"center"}}>{CLEFS[c].subtitle}</span>
           </button>
         ))}
       </div>
@@ -340,6 +368,13 @@ function App() {
           return <button key={key} style={S.accBtn(effectiveAcc===key,dis)} onClick={()=>!dis&&handleAccidental(key)}>{label}</button>;
         })}
       </div>
+      <div style={{marginBottom:14}}>
+        <button style={S.sustainBtn(sustain)} onClick={()=>{
+          const next=!sustain;
+          if (!next && playing) stopAll();
+          setSustain(next);
+        }}>{sustain?"⏸ Sustain: ON":"⏸ Sustain"}</button>
+      </div>
 
       <div style={S.result(!!selectedNote)}>
         {selectedNote ? (<>
@@ -348,9 +383,12 @@ function App() {
           </div>
           <div style={{fontSize:54,fontWeight:700,color:"#2c1810",lineHeight:1,marginBottom:4}}>{displayName()}</div>
           {effectiveAcc!=="natural"&&<div style={{fontSize:12,color:"#a07850",marginBottom:6}}>({effectiveAcc==="sharp"?"one semitone higher than ":"one semitone lower than "}{noteLetter})</div>}
-          <button style={S.playBtn(playing)} onClick={()=>triggerPlay(selectedNote,accidental)}>
-            <span style={{fontSize:17}}>{playing?"♪":"▶"}</span>{playing?"Playing…":"Play again"}
-          </button>
+          {sustain && playing
+            ? <button style={S.stopBtn} onClick={stopAll}><span style={{fontSize:17}}>◼</span>Stop</button>
+            : <button style={S.playBtn(playing)} onClick={()=>triggerPlay(selectedNote,accidental)}>
+                <span style={{fontSize:17}}>{playing?"♪":"▶"}</span>{playing?"Playing…":"Play again"}
+              </button>
+          }
         </>) : (
           <div style={{color:"#b09a78",fontSize:14,fontStyle:"italic",textAlign:"center"}}>Tap a position on the staff above<br/>to identify the note</div>
         )}
