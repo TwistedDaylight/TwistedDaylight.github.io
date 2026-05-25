@@ -124,7 +124,7 @@ function filterRules(query, catId) {
     const corpus = [
       rule.keyword,
       ...(rule.tags || []),
-      ...Object.values(rule.editions).map(e => e.text || ''),
+      ...Object.values(rule.editions).map(e => edText(e)),
     ].join(' ').toLowerCase();
     return corpus.includes(query);
   });
@@ -139,7 +139,7 @@ function renderRuleCard(rule) {
 
   const bodySections = Object.entries(rule.editions).map(([k, entry]) => {
     const ed = KILL_TEAM_DATA.editions[k];
-    const text = formatRuleText(entry.text || '');
+    const text = formatRuleText(edText(entry));
     return `<div class="ed-section">
       <span class="ed-label ed-${k}">${ed.label}</span>
       <div class="rule-text">${text}</div>
@@ -230,7 +230,7 @@ function renderCompareView(rule) {
     const ed = KILL_TEAM_DATA.editions[k];
     const entry = rule.editions[k];
     const contentHtml = entry
-      ? `<div class="compare-ed-text">${formatRuleText(entry.text || '')}</div>`
+      ? `<div class="compare-ed-text">${formatRuleText(edText(entry))}</div>`
       : `<div class="compare-ed-absent">Not present in this edition.</div>`;
     return `<div class="compare-ed-block ed-${k}">
       <div class="compare-ed-title">${escHtml(ed.label)}</div>
@@ -360,6 +360,12 @@ function enableNameEdit(pi) {
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
+
+// editions values can be a plain string OR an object { text, notes }
+function edText(entry) {
+  if (!entry) return '';
+  return typeof entry === 'string' ? entry : (entry.text || '');
+}
 
 function escHtml(str) {
   return String(str)
