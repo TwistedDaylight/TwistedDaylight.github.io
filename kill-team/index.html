@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="theme-color" content="#0d0d0d">
+  <title>Kill Team Ref</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ── RULES TAB ──────────────────────────────────────────────────── -->
+  <div id="panel-rules" class="tab-panel active">
+    <div class="panel-header">
+      <div class="panel-title">Kill Team Rules</div>
+      <div class="panel-subtitle">Reference — tap a rule to expand</div>
+    </div>
+    <div class="search-wrap">
+      <input id="rules-search" class="search-input" type="search"
+             placeholder="Search rules, keywords, tags…" autocomplete="off" autocorrect="off">
+    </div>
+    <div id="cat-pills" class="cat-pills"></div>
+    <div id="rules-list" class="rules-scroll"></div>
+  </div>
+
+  <!-- ── COMPARE TAB ────────────────────────────────────────────────── -->
+  <div id="panel-compare" class="tab-panel">
+    <div class="panel-header">
+      <div class="panel-title">Compare</div>
+      <div class="panel-subtitle">See how a rule differs between editions</div>
+    </div>
+    <div class="search-wrap">
+      <input id="compare-search" class="search-input" type="search"
+             placeholder="Search for a rule to compare…" autocomplete="off" autocorrect="off">
+    </div>
+    <div id="compare-suggestions" class="compare-suggestions"></div>
+    <div id="compare-view" class="compare-scroll">
+      <p class="compare-hint">Search for a rule above to compare it between editions.</p>
+    </div>
+  </div>
+
+  <!-- ── TRACKER TAB ────────────────────────────────────────────────── -->
+  <div id="panel-tracker" class="tab-panel">
+    <div class="tracker-inner">
+
+      <!-- Turning Point -->
+      <div class="tp-section">
+        <span class="tp-label">Turning Point</span>
+        <div class="tp-controls">
+          <button class="tp-btn" id="tp-prev">◀</button>
+          <div class="tp-display">
+            <span class="tp-current" id="tp-current">1</span>
+            <span class="tp-sep">/</span>
+            <span class="tp-max">4</span>
+          </div>
+          <button class="tp-btn" id="tp-next">▶</button>
+        </div>
+      </div>
+
+      <!-- Player columns -->
+      <div class="players-row">
+
+        <!-- Player 0 -->
+        <div class="player-col" id="player-col-0">
+          <div class="player-name-bar">
+            <span class="player-name" id="player-name-0">Player 1</span>
+            <button class="edit-name-btn" onclick="enableNameEdit(0)" title="Rename">✏</button>
+          </div>
+          <div class="counters-grid">
+
+            <div class="counter-block">
+              <span class="counter-label">CP</span>
+              <div class="counter-row">
+                <button class="cnt-btn" onclick="adjustStat(0,'cp',-1)">−</button>
+                <span class="cnt-value" data-stat="cp">0</span>
+                <button class="cnt-btn" onclick="adjustStat(0,'cp',1)">+</button>
+              </div>
+            </div>
+
+            <div class="counter-block">
+              <span class="counter-label">Kill Ops</span>
+              <div class="counter-row">
+                <button class="cnt-btn" onclick="adjustStat(0,'killOps',-1)">−</button>
+                <span class="cnt-value" data-stat="killOps">0</span>
+                <button class="cnt-btn" onclick="adjustStat(0,'killOps',1)">+</button>
+              </div>
+            </div>
+
+            <div class="counter-block">
+              <span class="counter-label">Crit Ops</span>
+              <div class="counter-row">
+                <button class="cnt-btn" onclick="adjustStat(0,'critOps',-1)">−</button>
+                <span class="cnt-value" data-stat="critOps">0</span>
+                <button class="cnt-btn" onclick="adjustStat(0,'critOps',1)">+</button>
+              </div>
+            </div>
+
+            <div class="counter-block">
+              <span class="counter-label">Tac Ops</span>
+              <div class="counter-row">
+                <button class="cnt-btn" onclick="adjustStat(0,'tacOps',-1)">−</button>
+                <span class="cnt-value" data-stat="tacOps">0</span>
+                <button class="cnt-btn" onclick="adjustStat(0,'tacOps',1)">+</button>
+              </div>
+            </div>
+
+            <div class="counter-block">
+              <span class="counter-label" style="color:var(--gold)">Total VP</span>
+              <div class="cnt-value counter-vp-val" style="color:var(--gold)">0</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Player 1 -->
+        <div class="player-col" id="player-col-1">
+          <div class="player-name-bar">
+            <span class="player-name" id="player-name-1">Player 2</span>
+            <button class="edit-name-btn" onclick="enableNameEdit(1)" title="Rename">✏</button>
+          </div>
+          <div class="counters-grid">
+
+            <div class="counter-block">
+              <span class="counter-label">CP</span>
+              <div class="counter-row">
+                <button class="cnt-btn" onclick="adjustStat(1,'cp',-1)">−</button>
+                <span class="cnt-value" data-stat="cp">0</span>
+                <button class="cnt-btn" onclick="adjustStat(1,'cp',1)">+</button>
+              </div>
+            </div>
+
+            <div class="counter-block">
+              <span class="counter-label">Kill Ops</span>
+              <div class="counter-row">
+                <button class="cnt-btn" onclick="adjustStat(1,'killOps',-1)">−</button>
+                <span class="cnt-value" data-stat="killOps">0</span>
+                <button class="cnt-btn" onclick="adjustStat(1,'killOps',1)">+</button>
+              </div>
+            </div>
+
+            <div class="counter-block">
+              <span class="counter-label">Crit Ops</span>
+              <div class="counter-row">
+                <button class="cnt-btn" onclick="adjustStat(1,'critOps',-1)">−</button>
+                <span class="cnt-value" data-stat="critOps">0</span>
+                <button class="cnt-btn" onclick="adjustStat(1,'critOps',1)">+</button>
+              </div>
+            </div>
+
+            <div class="counter-block">
+              <span class="counter-label">Tac Ops</span>
+              <div class="counter-row">
+                <button class="cnt-btn" onclick="adjustStat(1,'tacOps',-1)">−</button>
+                <span class="cnt-value" data-stat="tacOps">0</span>
+                <button class="cnt-btn" onclick="adjustStat(1,'tacOps',1)">+</button>
+              </div>
+            </div>
+
+            <div class="counter-block">
+              <span class="counter-label" style="color:var(--gold)">Total VP</span>
+              <div class="cnt-value counter-vp-val" style="color:var(--gold)">0</div>
+            </div>
+
+          </div>
+        </div>
+
+      </div><!-- /players-row -->
+
+      <button id="reset-game" class="reset-btn">Reset Game</button>
+
+    </div><!-- /tracker-inner -->
+  </div>
+
+  <!-- ── BOTTOM NAV ──────────────────────────────────────────────────── -->
+  <nav class="nav-bar">
+    <button class="nav-tab active" data-tab="rules">
+      <span class="nav-icon">📖</span>
+      <span>Rules</span>
+    </button>
+    <button class="nav-tab" data-tab="compare">
+      <span class="nav-icon">⚖</span>
+      <span>Compare</span>
+    </button>
+    <button class="nav-tab" data-tab="tracker">
+      <span class="nav-icon">🎯</span>
+      <span>Tracker</span>
+    </button>
+  </nav>
+
+  <script src="rules-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
