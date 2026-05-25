@@ -5,6 +5,8 @@
 let activeTab = 'rules';
 let activeCategory = 'all';
 let searchQuery = '';
+let fromYear = null;
+let toYear = null;
 
 let compareQuery = '';
 let compareResults = [];
@@ -19,11 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
   buildCategoryPills();
   buildRules();
   bindRulesSearch();
+  bindYearFilter();
   bindCompareSearch();
   bindNav();
   renderTracker();
   bindTracker();
-  bindCompareHints();
 });
 
 // ── NAVIGATION ───────────────────────────────────────────────────────────────
@@ -42,16 +44,44 @@ function switchTab(tabId) {
   document.querySelector(`.nav-tab[data-tab="${tabId}"]`).classList.add('active');
 }
 
+// ── DATE HELPERS ──────────────────────────────────────────────────────────────
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 1) return parts[0];
+  const idx = parseInt(parts[1], 10) - 1;
+  return MONTHS[idx] + ' ' + parts[0];
+}
+
+function getYear(dateStr) {
+  return parseInt(dateStr.split('-')[0], 10);
+}
+
+// Sort versions newest first, optionally filtered to a year range.
+function sortedVersions(versions, from, to) {
+  return (versions || [])
+    .filter(v => {
+      const y = getYear(v.date);
+      if (from && y < from) return false;
+      if (to && y > to) return false;
+      return true;
+    })
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
 // ── RULES TAB ─────────────────────────────────────────────────────────────────
 
 function buildCategoryPills() {
   const wrap = document.getElementById('cat-pills');
-  const all = document.createElement('button');
-  all.className = 'pill active';
-  all.textContent = 'All';
-  all.dataset.cat = 'all';
-  all.addEventListener('click', () => setCat('all'));
-  wrap.appendChild(all);
+  const allBtn = document.createElement('button');
+  allBtn.className = 'pill active';
+  allBtn.textContent = 'All';
+  allBtn.dataset.cat = 'all';
+  allBtn.addEventListener('click', () => setCat('all'));
+  wrap.appendChild(allBtn);
 
   KILL_TEAM_DATA.categories.forEach(cat => {
     const btn = document.createElement('button');
@@ -79,31 +109,55 @@ function bindRulesSearch() {
   });
 }
 
+function bindYearFilter() {
+  const fromEl = document.getElementById('year-from');
+  const toEl = document.getElementById('year-to');
+  const clearBtn = document.getElementById('year-clear');
+
+  const update = () => {
+    fromYear = fromEl.value ? parseInt(fromEl.value, 10) : null;
+    toYear = toEl.value ? parseInt(toEl.value, 10) : null;
+    clearBtn.style.display = (fromEl.value || toEl.value) ? 'flex' : 'none';
+    buildRules();
+  };
+
+  fromEl.addEventListener('input', update);
+  toEl.addEventListener('input', update);
+  clearBtn.addEventListener('click', () => {
+    fromEl.value = '';
+    toEl.value = '';
+    fromYear = null;
+    toYear = null;
+    clearBtn.style.display = 'none';
+    buildRules();
+  });
+}
+
 function buildRules() {
   const container = document.getElementById('rules-list');
-  const filtered = filterRules(searchQuery, activeCategory);
+  const filtered = filterRules();
 
   if (!filtered.length) {
-    container.innerHTML = '<p class="empty-state">No rules match your search.</p>';
+    container.innerHTML = '<p class="empty-state">No rules match your filters.</p>';
     return;
   }
 
-  // Group by category
+  // Group by category preserving category order
   const grouped = {};
-  filtered.forEach(rule => {
+  filtered.forEach(({ rule }) => {
     if (!grouped[rule.category]) grouped[rule.category] = [];
     grouped[rule.category].push(rule);
   });
 
   const catOrder = KILL_TEAM_DATA.categories.map(c => c.id);
   let html = '';
-
   catOrder.forEach(catId => {
     if (!grouped[catId]) return;
     const cat = KILL_TEAM_DATA.categories.find(c => c.id === catId);
     html += `<div class="cat-header">${escHtml(cat.label)}</div>`;
     grouped[catId].forEach(rule => {
-      html += renderRuleCard(rule);
+      const vers = sortedVersions(rule.versions, fromYear, toYear);
+      html += renderRuleCard(rule, vers);
     });
   });
 
@@ -111,45 +165,55 @@ function buildRules() {
 
   container.querySelectorAll('.rule-header').forEach(header => {
     header.addEventListener('click', () => {
-      const card = header.closest('.rule-card');
-      card.classList.toggle('open');
+      header.closest('.rule-card').classList.toggle('open');
     });
   });
 }
 
-function filterRules(query, catId) {
-  return KILL_TEAM_DATA.rules.filter(rule => {
-    if (catId !== 'all' && rule.category !== catId) return false;
-    if (!query) return true;
-    const corpus = [
-      rule.keyword,
-      ...(rule.tags || []),
-      ...Object.values(rule.editions).map(e => edText(e)),
-    ].join(' ').toLowerCase();
-    return corpus.includes(query);
-  });
+// Returns array of { rule, versions } where versions is already filtered + sorted.
+function filterRules() {
+  return KILL_TEAM_DATA.rules
+    .map(rule => {
+      const vers = sortedVersions(rule.versions, fromYear, toYear);
+      return { rule, vers };
+    })
+    .filter(({ rule, vers }) => {
+      if (vers.length === 0) return false;
+      if (activeCategory !== 'all' && rule.category !== activeCategory) return false;
+      if (!searchQuery) return true;
+      const corpus = [
+        rule.keyword,
+        ...(rule.tags || []),
+        ...vers.map(v => v.text || ''),
+        ...vers.map(v => v.source || ''),
+      ].join(' ').toLowerCase();
+      return corpus.includes(searchQuery);
+    });
 }
 
-function renderRuleCard(rule) {
-  const edKeys = Object.keys(rule.editions);
-  const badges = edKeys.map(k => {
-    const ed = KILL_TEAM_DATA.editions[k];
-    return `<span class="ed-badge ed-${k}">${ed.shortLabel}</span>`;
-  }).join('');
+function renderRuleCard(rule, versions) {
+  // Header badges: up to 3 version dates shown
+  const shownBadges = versions.slice(0, 3).map(v =>
+    `<span class="ver-badge">${escHtml(formatDate(v.date))}</span>`
+  ).join('');
+  const moreBadge = versions.length > 3
+    ? `<span class="ver-badge ver-badge-more">+${versions.length - 3}</span>` : '';
 
-  const bodySections = Object.entries(rule.editions).map(([k, entry]) => {
-    const ed = KILL_TEAM_DATA.editions[k];
-    const text = formatRuleText(edText(entry));
-    return `<div class="ed-section">
-      <span class="ed-label ed-${k}">${ed.label}</span>
-      <div class="rule-text">${text}</div>
+  const bodySections = versions.map((v, i) => {
+    const isNewest = i === 0;
+    return `<div class="ver-section${isNewest ? ' ver-newest' : ''}">
+      <div class="ver-section-head">
+        <span class="ver-date-pill${isNewest ? ' newest' : ''}">${escHtml(formatDate(v.date))}</span>
+        <span class="ver-source">${escHtml(v.source || '')}</span>
+      </div>
+      <div class="rule-text">${formatRuleText(v.text || '')}</div>
     </div>`;
   }).join('');
 
   return `<div class="rule-card" data-id="${escHtml(rule.id)}">
     <div class="rule-header">
       <span class="rule-keyword">${escHtml(rule.keyword)}</span>
-      <span class="rule-badges">${badges}</span>
+      <span class="rule-badges">${shownBadges}${moreBadge}</span>
       <span class="expand-arrow">▼</span>
     </div>
     <div class="rule-body">${bodySections}</div>
@@ -157,9 +221,7 @@ function renderRuleCard(rule) {
 }
 
 function formatRuleText(text) {
-  // highlight ⚠ warnings
-  const escaped = escHtml(text);
-  return escaped.replace(/⚠/g, '<span class="warn-marker">⚠</span>');
+  return escHtml(text).replace(/⚠/g, '<span class="warn-marker">⚠</span>');
 }
 
 // ── COMPARE TAB ───────────────────────────────────────────────────────────────
@@ -172,17 +234,13 @@ function bindCompareSearch() {
   });
 }
 
-function bindCompareHints() {
-  // prev/next wired after render; just pre-bind container
-}
-
 function buildCompareSuggestions() {
   const suggestEl = document.getElementById('compare-suggestions');
   const viewEl = document.getElementById('compare-view');
 
   if (!compareQuery) {
     suggestEl.innerHTML = '';
-    viewEl.innerHTML = '<p class="compare-hint">Search for a rule above to compare it between editions.</p>';
+    viewEl.innerHTML = '<p class="compare-hint">Search for a rule above to see its full version history.</p>';
     return;
   }
 
@@ -206,10 +264,9 @@ function buildCompareSuggestions() {
     return;
   }
 
-  // Show suggestions
-  suggestEl.innerHTML = matches.slice(0, 8).map((rule, i) => {
-    return `<div class="suggestion-item" data-i="${i}">${escHtml(rule.keyword)}</div>`;
-  }).join('');
+  suggestEl.innerHTML = matches.slice(0, 8).map((rule, i) =>
+    `<div class="suggestion-item" data-i="${i}">${escHtml(rule.keyword)}</div>`
+  ).join('');
 
   suggestEl.querySelectorAll('.suggestion-item').forEach(item => {
     item.addEventListener('click', () => {
@@ -224,17 +281,17 @@ function buildCompareSuggestions() {
 
 function renderCompareView(rule) {
   const viewEl = document.getElementById('compare-view');
-  const allEdKeys = Object.keys(KILL_TEAM_DATA.editions);
+  const versions = sortedVersions(rule.versions); // no date filter in compare — show full history
 
-  const blocks = allEdKeys.map(k => {
-    const ed = KILL_TEAM_DATA.editions[k];
-    const entry = rule.editions[k];
-    const contentHtml = entry
-      ? `<div class="compare-ed-text">${formatRuleText(edText(entry))}</div>`
-      : `<div class="compare-ed-absent">Not present in this edition.</div>`;
-    return `<div class="compare-ed-block ed-${k}">
-      <div class="compare-ed-title">${escHtml(ed.label)}</div>
-      ${contentHtml}
+  const blocks = versions.map((v, i) => {
+    const isNewest = i === 0;
+    return `<div class="compare-ver-block${isNewest ? ' compare-newest' : ''}">
+      <div class="compare-ver-head">
+        <span class="ver-date-pill${isNewest ? ' newest' : ''}">${escHtml(formatDate(v.date))}</span>
+        <span class="ver-source">${escHtml(v.source || '')}</span>
+        ${isNewest ? '<span class="newest-label">Latest</span>' : ''}
+      </div>
+      <div class="compare-ver-text">${formatRuleText(v.text || '')}</div>
     </div>`;
   }).join('');
 
@@ -245,7 +302,9 @@ function renderCompareView(rule) {
     <button class="compare-nav-btn" id="compare-next" ${nextDisabled}>Next ▶</button>
   </div>` : '';
 
-  viewEl.innerHTML = `<div class="compare-rule-header">${escHtml(rule.keyword)}</div>${blocks}${navHtml}`;
+  viewEl.innerHTML = `<div class="compare-rule-header">${escHtml(rule.keyword)}</div>
+    <div class="compare-ver-count">${versions.length} version${versions.length !== 1 ? 's' : ''} — newest first</div>
+    ${blocks}${navHtml}`;
 
   const prevBtn = viewEl.querySelector('#compare-prev');
   const nextBtn = viewEl.querySelector('#compare-next');
@@ -258,7 +317,7 @@ function navigateCompare(delta) {
   renderCompareView(compareResults[compareIndex]);
 }
 
-// ── TRACKER TAB ───────────────────────────────────────────────────────────────
+// ── TRACKER ────────────────────────────────────────────────────────────────────
 
 function loadTracker() {
   try {
@@ -291,7 +350,6 @@ function bindTracker() {
   });
   document.getElementById('reset-game').addEventListener('click', () => {
     if (confirm('Reset the game? All counters will be cleared.')) {
-      // preserve names
       const names = tracker.players.map(p => p.name);
       tracker = defaultTracker();
       tracker.players.forEach((p, i) => { p.name = names[i]; });
@@ -302,27 +360,21 @@ function bindTracker() {
 }
 
 function renderTracker() {
-  // Turning point
   document.getElementById('tp-current').textContent = tracker.tp;
   document.getElementById('tp-prev').disabled = tracker.tp <= 1;
   document.getElementById('tp-next').disabled = tracker.tp >= 4;
 
-  // Players
   tracker.players.forEach((player, pi) => {
     const col = document.getElementById(`player-col-${pi}`);
-
-    // Name (don't overwrite while user is typing)
     const nameEl = col.querySelector('.player-name');
     if (nameEl.contentEditable !== 'true') nameEl.textContent = player.name;
 
-    // Counters
-    const stats = ['cp', 'killOps', 'critOps', 'tacOps'];
-    stats.forEach(stat => {
+    ['cp', 'killOps', 'critOps', 'tacOps'].forEach(stat => {
       col.querySelector(`.cnt-value[data-stat="${stat}"]`).textContent = player[stat];
     });
 
-    // VP (KillOps + CritOps + TacOps)
-    col.querySelector('.counter-vp-val').textContent = player.killOps + player.critOps + player.tacOps;
+    col.querySelector('.counter-vp-val').textContent =
+      player.killOps + player.critOps + player.tacOps;
   });
 }
 
@@ -332,13 +384,11 @@ function adjustStat(pi, stat, delta) {
   renderTracker();
 }
 
-// Name editing
 function enableNameEdit(pi) {
   const col = document.getElementById(`player-col-${pi}`);
   const nameEl = col.querySelector('.player-name');
   nameEl.contentEditable = 'true';
   nameEl.focus();
-  // Select all
   const range = document.createRange();
   range.selectNodeContents(nameEl);
   window.getSelection().removeAllRanges();
@@ -352,7 +402,6 @@ function enableNameEdit(pi) {
     saveTracker();
     renderTracker();
   };
-
   nameEl.addEventListener('blur', finish, { once: true });
   nameEl.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); }
@@ -360,12 +409,6 @@ function enableNameEdit(pi) {
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
-
-// editions values can be a plain string OR an object { text, notes }
-function edText(entry) {
-  if (!entry) return '';
-  return typeof entry === 'string' ? entry : (entry.text || '');
-}
 
 function escHtml(str) {
   return String(str)

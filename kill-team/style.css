@@ -175,6 +175,65 @@ body {
 }
 .pill:active { opacity: 0.7; }
 
+/* ── YEAR FILTER ──────────────────────────────────────────────────── */
+
+.year-filter-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.year-filter-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.year-input {
+  width: 64px;
+  background: var(--surface2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+  -webkit-appearance: none;
+  text-align: center;
+}
+.year-input:focus { border-color: var(--gold); }
+.year-input::placeholder { color: var(--text-dim); }
+
+.year-sep {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.year-clear-btn {
+  margin-left: auto;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--red-dim);
+  border: 1px solid var(--red);
+  border-radius: var(--radius-sm);
+  color: var(--red-bright);
+  font-size: 0.8rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.year-clear-btn:active { opacity: 0.7; }
+
 /* ── RULES LIST ───────────────────────────────────────────────────── */
 
 .rules-scroll {
@@ -227,23 +286,22 @@ body {
   flex-shrink: 0;
 }
 
-.ed-badge {
+/* Version date badges in the card header */
+.ver-badge {
   font-size: 0.6rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   padding: 2px 6px;
   border-radius: 4px;
-  text-transform: uppercase;
+  color: var(--gold);
+  background: var(--gold-dim);
+  border: 1px solid var(--gold-border);
+  white-space: nowrap;
 }
-.ed-badge.ed-kt21 {
-  color: var(--ed-21-color);
-  background: var(--ed-21-bg);
-  border: 1px solid var(--ed-21-border);
-}
-.ed-badge.ed-kt24 {
-  color: var(--ed-24-color);
-  background: var(--ed-24-bg);
-  border: 1px solid var(--ed-24-border);
+.ver-badge-more {
+  color: var(--text-muted);
+  background: transparent;
+  border-color: var(--border);
 }
 
 .expand-arrow {
@@ -261,31 +319,44 @@ body {
 }
 .rule-card.open .rule-body { display: block; }
 
-.ed-section { padding: 8px 0; }
-.ed-section + .ed-section {
+/* Version sections inside an expanded rule card */
+.ver-section { padding: 8px 0; }
+.ver-section + .ver-section {
   border-top: 1px solid var(--border);
   margin-top: 4px;
 }
+.ver-newest { /* no extra style needed — newest-first is the default */ }
 
-.ed-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.ver-section-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   margin-bottom: 6px;
-  display: inline-block;
+  flex-wrap: wrap;
+}
+
+/* Date pill inside expanded section */
+.ver-date-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   padding: 2px 8px;
   border-radius: 4px;
+  color: var(--text-muted);
+  background: var(--surface3);
+  border: 1px solid var(--border-light);
+  white-space: nowrap;
 }
-.ed-label.ed-kt21 {
-  color: var(--ed-21-color);
-  background: var(--ed-21-bg);
-  border: 1px solid var(--ed-21-border);
+.ver-date-pill.newest {
+  color: var(--gold);
+  background: var(--gold-dim);
+  border-color: var(--gold-border);
 }
-.ed-label.ed-kt24 {
-  color: var(--ed-24-color);
-  background: var(--ed-24-bg);
-  border: 1px solid var(--ed-24-border);
+
+.ver-source {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .rule-text {
@@ -346,52 +417,57 @@ body {
   font-size: 1rem;
   font-weight: 700;
   color: var(--gold);
+  margin-bottom: 4px;
+}
+
+.compare-ver-count {
+  font-size: 0.72rem;
+  color: var(--text-muted);
   margin-bottom: 14px;
 }
 
-.compare-ed-block {
-  border-radius: var(--radius);
-  margin-bottom: 10px;
-  overflow: hidden;
+/* Version blocks in compare/history view */
+.compare-ver-block {
+  background: var(--surface);
   border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  overflow: hidden;
 }
-.compare-ed-block.ed-kt21 { border-color: var(--ed-21-border); }
-.compare-ed-block.ed-kt24 { border-color: var(--ed-24-border); }
+.compare-ver-block.compare-newest {
+  border-color: var(--gold-border);
+}
 
-.compare-ed-title {
-  font-size: 0.72rem;
+.compare-ver-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.compare-ver-block.compare-newest .compare-ver-head {
+  background: var(--gold-dim);
+  border-bottom-color: var(--gold-border);
+}
+
+.newest-label {
+  margin-left: auto;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  padding: 7px 12px;
-}
-.compare-ed-block.ed-kt21 .compare-ed-title {
-  background: var(--ed-21-bg);
-  color: var(--ed-21-color);
-  border-bottom: 1px solid var(--ed-21-border);
-}
-.compare-ed-block.ed-kt24 .compare-ed-title {
-  background: var(--ed-24-bg);
-  color: var(--ed-24-color);
-  border-bottom: 1px solid var(--ed-24-border);
+  color: var(--gold);
 }
 
-.compare-ed-text {
+.compare-ver-text {
   padding: 11px 13px;
   font-size: 0.85rem;
   line-height: 1.55;
   color: var(--text);
-  background: var(--surface);
 }
-.compare-ed-text .warn-marker { color: var(--warn); font-weight: 600; }
-
-.compare-ed-absent {
-  padding: 11px 13px;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  background: var(--surface);
-  font-style: italic;
-}
+.compare-ver-text .warn-marker { color: var(--warn); font-weight: 600; }
 
 .compare-nav-row {
   display: flex;

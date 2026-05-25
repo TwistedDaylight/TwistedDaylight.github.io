@@ -21,6 +21,16 @@
       <input id="rules-search" class="search-input" type="search"
              placeholder="Search rules, keywords, tags…" autocomplete="off" autocorrect="off">
     </div>
+    <div class="year-filter-wrap">
+      <span class="year-filter-label">From</span>
+      <input id="year-from" class="year-input" type="number" min="2018" max="2030"
+             placeholder="2021" inputmode="numeric">
+      <span class="year-sep">→</span>
+      <span class="year-filter-label">To</span>
+      <input id="year-to" class="year-input" type="number" min="2018" max="2030"
+             placeholder="2025" inputmode="numeric">
+      <button id="year-clear" class="year-clear-btn" title="Clear filter">✕</button>
+    </div>
     <div id="cat-pills" class="cat-pills"></div>
     <div id="rules-list" class="rules-scroll"></div>
   </div>
