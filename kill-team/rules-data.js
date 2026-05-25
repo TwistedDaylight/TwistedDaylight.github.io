@@ -48,6 +48,20 @@ const KILL_TEAM_DATA = {
     // ── GAME OVERVIEW ──────────────────────────────────────────────────────────
 
     {
+      id: 'set-up',
+      keyword: 'Set Up',
+      category: 'overview',
+      tags: ['setup', 'killzone', 'board size', 'drop zone', 'deploy', 'initiative', 'start game', '30x22'],
+      versions: [
+        {
+          date: '2024-01',
+          source: 'Kill Team Lite Rules 2024',
+          text: 'Each player selects a kill team and gathers their operatives, alongside their free online rules, a killzone – 30" x 22" game board (unless otherwise specified) and terrain, a measuring device in inches, 10 six-sided dice (D6), tokens and markers.\n\nSet up the killzone, then randomly determine one player to have initiative. The player with initiative selects a drop zone from the mission map. If not playing a mission, the player with initiative selects one edge as theirs; the opposite edge is their opponent\'s. Each player\'s drop zone is within 3" of their killzone edge.\n\nStarting with the player with initiative, players alternate setting up one third of their kill team (rounding up). Each operative must be wholly within their drop zone and given a Conceal order.',
+        },
+      ],
+    },
+
+    {
       id: 'kill-team',
       keyword: 'Kill Team (Team Composition)',
       category: 'overview',
@@ -216,6 +230,20 @@ const KILL_TEAM_DATA = {
           date: '2021-08',
           source: 'Kill Team 2021',
           text: 'The GA characteristic shows how many operatives of that type activate together in one activation. GA 2 means you can activate up to 2 of that type together, spending each one\'s AP independently. Still counts as one activation in the alternating sequence.',
+        },
+      ],
+    },
+
+    {
+      id: 'counteract',
+      keyword: 'Counteract',
+      category: 'sequence',
+      tags: ['counteract', 'expended', 'engage order', 'free action', 'out-activated', 'all expended'],
+      versions: [
+        {
+          date: '2024-01',
+          source: 'Kill Team Lite Rules 2024',
+          text: 'If all your operatives are expended but your opponent\'s aren\'t, when you would activate a ready friendly operative, one expended friendly operative with an Engage order can counteract to perform a 1AP action for free. Each operative can only counteract once per turning point, and cannot move more than 2" while doing so.',
         },
       ],
     },
@@ -417,8 +445,8 @@ const KILL_TEAM_DATA = {
       versions: [
         {
           date: '2024-01',
-          source: 'Kill Team 2024',
-          text: '⚠ Default starting order may differ in some 2024 rules. Verify.',
+          source: 'Kill Team Lite Rules 2024',
+          text: 'An operative with an Engage order can perform actions as normal and counteract.',
         },
         {
           date: '2021-08',
@@ -436,8 +464,8 @@ const KILL_TEAM_DATA = {
       versions: [
         {
           date: '2024-01',
-          source: 'Kill Team 2024',
-          text: '⚠ Targeting restrictions for Conceal order may have been refined. Verify the precise wording in your 2024 rulebook.',
+          source: 'Kill Team Lite Rules 2024',
+          text: 'An operative with a Conceal order is not a valid target while in cover, but it cannot perform Shoot or Charge actions.',
         },
         {
           date: '2021-08',
@@ -922,10 +950,15 @@ const KILL_TEAM_DATA = {
 
     {
       id: 'ready-activated',
-      keyword: 'Ready / Activated States',
+      keyword: 'Ready / Expended States',
       category: 'conditions',
-      tags: ['ready', 'activated', 'state', 'token', 'marker'],
+      tags: ['ready', 'expended', 'activated', 'state', 'token', 'marker'],
       versions: [
+        {
+          date: '2024-01',
+          source: 'Kill Team Lite Rules 2024',
+          text: 'Operatives are either Ready or Expended. Both Engage order and Conceal order operatives track this state with a separate token. An operative that has completed its activation this Turning Point is Expended. Expended operatives may still Counteract (once per Turning Point) if all your operatives are expended.',
+        },
         {
           date: '2021-08',
           source: 'Kill Team 2021',
