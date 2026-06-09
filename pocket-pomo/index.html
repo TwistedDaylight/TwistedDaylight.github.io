@@ -812,17 +812,21 @@ const BREAKS_KID = [
   { emoji: '🐸',  name: 'Frog Jumps!',    desc: 'Squat down low and jump up HIGH — 8 times!' },
   { emoji: '🧘',  name: 'Big Breaths!',   desc: '5 huge breaths — in through nose, out through mouth!' },
   { emoji: '🌪️', name: 'Spin Around!',   desc: 'Spin 5 times one way, then 5 the other!' },
+  { emoji: '🐰',  name: 'Bunny Hops!',    desc: 'Hop on two feet all the way around the room — 10 times!' },
+  { emoji: '🕺',  name: 'Wiggle Dance!',  desc: 'Wiggle everything from head to toe for 30 seconds — go wild!' },
 ];
 
 const BREAKS_ADULT = [
-  { emoji: '🚶',  name: 'Short Walk',     desc: 'Walk around the room or step outside — just 2 minutes.' },
-  { emoji: '🧘',  name: 'Desk Stretch',   desc: 'Roll your shoulders back, then tilt your neck slowly side to side.' },
-  { emoji: '👁️', name: 'Eye Rest',       desc: 'Look at something 20 feet away for 20 seconds. Blink slowly.' },
-  { emoji: '💧',  name: 'Hydrate',        desc: 'Get a glass of water. Drink it away from the screen.' },
-  { emoji: '🌬️', name: 'Box Breathing',  desc: 'Inhale 4s → hold 4s → exhale 4s → hold 4s. Do this 3 times.' },
-  { emoji: '🙆',  name: 'Full Stretch',   desc: 'Stand up, reach both arms overhead, then slowly fold forward.' },
-  { emoji: '🏃',  name: 'Get Moving',     desc: 'Walk up and down the stairs, or march in place for 60 seconds.' },
-  { emoji: '😌',  name: 'Mindful Minute', desc: 'Close your eyes. 5 slow breaths. Notice 3 sounds around you.' },
+  { emoji: '🚶',  name: 'Short Walk',      desc: 'Walk around the room or step outside — just 2 minutes.' },
+  { emoji: '🧘',  name: 'Desk Stretch',    desc: 'Roll your shoulders back, then tilt your neck slowly side to side.' },
+  { emoji: '👁️', name: 'Eye Rest',        desc: 'Look at something 20 feet away for 20 seconds. Blink slowly.' },
+  { emoji: '💧',  name: 'Hydrate',         desc: 'Get a glass of water. Drink it away from the screen.' },
+  { emoji: '🌬️', name: 'Box Breathing',   desc: 'Inhale 4s → hold 4s → exhale 4s → hold 4s. Do this 3 times.' },
+  { emoji: '🙆',  name: 'Full Stretch',    desc: 'Stand up, reach both arms overhead, then slowly fold forward.' },
+  { emoji: '🏃',  name: 'Get Moving',      desc: 'Walk up and down the stairs, or march in place for 60 seconds.' },
+  { emoji: '😌',  name: 'Mindful Minute',  desc: 'Close your eyes. 5 slow breaths. Notice 3 sounds around you.' },
+  { emoji: '🤲',  name: 'Wrist Rolls',     desc: 'Slowly roll both wrists 10 times in each direction. Shake them out.' },
+  { emoji: '🙆',  name: 'Shoulder Shrugs', desc: 'Lift both shoulders to your ears, hold 3 seconds, release. Repeat 8 times.' },
 ];
 
 const ENCOURAGEMENTS = [
@@ -848,7 +852,6 @@ const state = {
   sessionPaused:    false,
   breakPaused:      false,
   _breakFromTask:   false,
-  currentBreakIndex: 0,
   encourageIndex:   0,
   starsToday:       0,
   items:            [],
@@ -937,6 +940,11 @@ function restoreTimerIfActive() {
   try {
     const raw = localStorage.getItem('pp-timer');
     if (!raw) return;
+    // If a new day was detected, discard the stale timer and stay on home screen
+    if (state._pendingNewDay) {
+      localStorage.removeItem('pp-timer');
+      return;
+    }
     const t = JSON.parse(raw);
     if (t.user !== state.currentUser) return;
     const remaining = Math.ceil((t.endTime - Date.now()) / 1000);
@@ -988,6 +996,14 @@ function hideResetModal() {
 
 function doReset(startFresh) {
   hideResetModal();
+  // Cancel any timer that was running from the previous day
+  clearInterval(state.timerInterval);
+  clearInterval(state.breakInterval);
+  clearInterval(state.encourageInterval);
+  state.endTime = null;
+  localStorage.removeItem('pp-timer');
+  stopAmbientSound();
+  releaseWakeLock();
   state.items   = [];                         // always clear tasks
   state.lastDay = state._pendingNewDay;
   if (startFresh) state.starsToday = 0;
@@ -1132,8 +1148,11 @@ function toggleItem(id) {
     item.done = false;
   } else {
     item.done = true;
-    awardStar(3, true);
-    recordActiveToday();
+    if (!item.starred) {
+      item.starred = true;
+      awardStar(3, true);
+      recordActiveToday();
+    }
   }
   saveData();
   renderChecklist();
@@ -1351,17 +1370,16 @@ function startBreakTimer() {
   pauseBtn.classList.remove('paused');
 
   const breaks = state.currentUser === 'adult' ? BREAKS_ADULT : BREAKS_KID;
-  const b = breaks[state.currentBreakIndex % breaks.length];
-  state.currentBreakIndex++;
+  const b = breaks[Math.floor(Math.random() * breaks.length)];
 
   const headerEl = document.getElementById('break-header');
   const skipBtn  = document.getElementById('skip-break-btn');
   if (state._breakFromTask) {
-    headerEl.textContent = state.currentUser === 'adult' ? '⏸️ Break Time' : '⏸️ Quick Break!';
-    skipBtn.textContent  = state.currentUser === 'adult' ? 'Done for now 🏠' : 'All done! 🏠';
+    headerEl.textContent = state.currentUser === 'adult' ? '😌 Break Time' : '😌 Quick Break!';
+    skipBtn.textContent  = state.currentUser === 'adult' ? 'Back 🏠' : 'Back 🏠';
   } else {
-    headerEl.textContent = state.currentUser === 'adult' ? '⏸️ Break Time' : '⏸️ Movement Break!';
-    skipBtn.textContent  = 'Ready! Let\'s go! 🚀';
+    headerEl.textContent = state.currentUser === 'adult' ? '☕ Break Time' : '🌈 Movement Break!';
+    skipBtn.textContent  = 'Continue 🚀';
   }
 
   document.getElementById('break-emoji').textContent    = b.emoji;
