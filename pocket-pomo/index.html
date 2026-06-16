@@ -53,6 +53,7 @@
       background: linear-gradient(135deg, #4A6CF7, #3730A3);
       box-shadow: 0 6px 20px rgba(74,108,247,0.35);
     }
+    body.adult-theme .stats-section-title { color: #94A3B8; }
     body.adult-theme .add-item-btn {
       background: #4A6CF7;
       box-shadow: 0 4px 12px rgba(74,108,247,0.28);
@@ -596,6 +597,202 @@
       box-shadow: 0 4px 12px rgba(255,140,0,0.30);
     }
 
+    /* ── FOCUS TIME WIDGET ────────────────────────────── */
+    .focus-time-widget {
+      display: flex;
+      align-items: center;
+      background: white;
+      border-radius: var(--radius-card);
+      padding: 12px 14px;
+      width: 100%; max-width: 420px;
+      box-shadow: 0 4px 18px var(--shadow);
+      gap: 0;
+    }
+    .focus-time-stat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .focus-time-num {
+      font-family: 'Fredoka One', sans-serif;
+      font-size: 1.3rem;
+      color: var(--tangerine);
+      line-height: 1;
+    }
+    body.adult-theme .focus-time-num {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+    }
+    .focus-time-lbl {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .focus-time-divider {
+      width: 1px;
+      height: 30px;
+      background: #E8E0D0;
+      flex-shrink: 0;
+    }
+    .focus-time-log-btn {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      background: var(--cream);
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-left: 8px;
+    }
+
+    /* ── STATS SCREEN ──────────────────────────────────── */
+    #screen-stats {
+      background: var(--cream);
+      overflow-y: auto;
+      padding-top: 16px;
+    }
+    .stats-back-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%; max-width: 420px;
+      margin-bottom: 4px;
+    }
+    .stats-screen-title {
+      font-family: 'Fredoka One', sans-serif;
+      font-size: 1.3rem;
+      color: var(--tangerine);
+    }
+    body.adult-theme .stats-screen-title {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+    }
+    .stats-totals-card, .stats-chart-card, .stats-log-card {
+      background: white;
+      border-radius: var(--radius-card);
+      padding: 18px 16px 14px;
+      width: 100%; max-width: 420px;
+      box-shadow: 0 4px 18px var(--shadow);
+    }
+    .stats-totals-row {
+      display: flex;
+      gap: 0;
+    }
+    .stats-total-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .stats-total-num {
+      font-family: 'Fredoka One', sans-serif;
+      font-size: 1.7rem;
+      color: var(--tangerine);
+      line-height: 1;
+    }
+    body.adult-theme .stats-total-num {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+    }
+    .stats-total-lbl {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .stats-total-divider {
+      width: 1px;
+      height: 36px;
+      background: #E8E0D0;
+      flex-shrink: 0;
+      align-self: center;
+    }
+    .stats-section-title {
+      font-weight: 900;
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 12px;
+    }
+    .stats-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 5px;
+      height: 72px;
+    }
+    .stats-bar {
+      flex: 1;
+      display: flex;
+      align-items: flex-end;
+      height: 100%;
+    }
+    .stats-bar-fill {
+      width: 100%;
+      background: #E8E0D0;
+      border-radius: 5px 5px 0 0;
+      min-height: 4px;
+      transition: height 0.4s ease;
+    }
+    .stats-bar-fill.today { background: var(--tangerine); }
+    .stats-chart-labels {
+      display: flex;
+      gap: 5px;
+      margin-top: 5px;
+    }
+    .stats-chart-labels div {
+      flex: 1;
+      text-align: center;
+      font-size: 0.66rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .stats-chart-labels div.today-lbl { color: var(--tangerine); }
+    body.adult-theme .stats-chart-labels div.today-lbl { color: #4A6CF7; }
+    body.adult-theme .stats-bar-fill.today { background: #4A6CF7; }
+    .stats-log-row {
+      padding: 10px 0;
+      border-bottom: 1.5px solid #F0EAE0;
+    }
+    .stats-log-row:last-child { border-bottom: none; }
+    .stats-log-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .stats-log-date {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--dark-text);
+    }
+    .stats-log-dur {
+      font-weight: 900;
+      color: var(--tangerine);
+      font-size: 0.92rem;
+    }
+    body.adult-theme .stats-log-dur { color: #4A6CF7; }
+    .stats-log-note {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 2px;
+      font-style: italic;
+      line-height: 1.3;
+    }
+    .stats-log-empty {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 16px 0;
+    }
+
     /* ── ANIMATIONS ────────────────────────────────────── */
     @keyframes bounce {
       0%, 100% { transform: translateY(0); }
@@ -644,6 +841,24 @@
 
     <div class="stars-display" id="stars-display">
       <span class="stars-empty">Earn stars by doing homework! ⭐</span>
+    </div>
+
+    <div class="focus-time-widget" id="focus-time-widget">
+      <div class="focus-time-stat">
+        <div class="focus-time-num" id="ft-today">0m</div>
+        <div class="focus-time-lbl">today</div>
+      </div>
+      <div class="focus-time-divider"></div>
+      <div class="focus-time-stat">
+        <div class="focus-time-num" id="ft-week">0m</div>
+        <div class="focus-time-lbl">this week</div>
+      </div>
+      <div class="focus-time-divider"></div>
+      <div class="focus-time-stat">
+        <div class="focus-time-num" id="ft-alltime">0m</div>
+        <div class="focus-time-lbl">all time</div>
+      </div>
+      <button class="focus-time-log-btn" onclick="showStats()" title="Focus history">📊</button>
     </div>
 
     <div class="checklist-card">
@@ -750,6 +965,47 @@
 
   </div><!-- /screen-celebrate -->
 
+  <!-- ══ STATS SCREEN ════════════════════════════════════ -->
+  <div id="screen-stats" class="screen">
+
+    <div class="stats-back-header">
+      <button class="home-btn" onclick="showScreen('home')">← Back</button>
+      <div class="stats-screen-title">Focus History</div>
+      <div style="width:70px"></div>
+    </div>
+
+    <div class="stats-totals-card">
+      <div class="stats-totals-row">
+        <div class="stats-total-item">
+          <div class="stats-total-num" id="stats-today-num">0m</div>
+          <div class="stats-total-lbl">Today</div>
+        </div>
+        <div class="stats-total-divider"></div>
+        <div class="stats-total-item">
+          <div class="stats-total-num" id="stats-week-num">0m</div>
+          <div class="stats-total-lbl">This week</div>
+        </div>
+        <div class="stats-total-divider"></div>
+        <div class="stats-total-item">
+          <div class="stats-total-num" id="stats-alltime-num">0m</div>
+          <div class="stats-total-lbl">All time</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-chart-card">
+      <div class="stats-section-title">Last 7 days</div>
+      <div class="stats-chart" id="stats-chart"></div>
+      <div class="stats-chart-labels" id="stats-chart-labels"></div>
+    </div>
+
+    <div class="stats-log-card">
+      <div class="stats-section-title">Recent sessions</div>
+      <div id="stats-log-list"></div>
+    </div>
+
+  </div><!-- /screen-stats -->
+
   <!-- ══ CONTINUE FOCUS MODAL ════════════════════════════ -->
   <div class="modal-overlay" id="continue-modal">
     <div class="modal-box">
@@ -793,7 +1049,8 @@ const TIMER_CIRC = 722.57;   // 2π × 115
 const BREAK_CIRC = 326.73;   // 2π × 52
 const RESET_HOUR = 3;        // day boundary
 
-const STORAGE_KEYS  = { kid: 'pp-data-kid', adult: 'pp-data-adult' };
+const STORAGE_KEYS   = { kid: 'pp-data-kid', adult: 'pp-data-adult' };
+const HISTORY_KEYS   = { kid: 'pp-history-kid', adult: 'pp-history-adult' };
 const ACTIVE_USER_KEY = 'pp-active-user';
 
 const TIMER_OPTIONS = [
@@ -910,6 +1167,40 @@ function saveData() {
   } catch(e) {}
 }
 
+/* ── History (focus time log) ── */
+function getHistoryKey() {
+  return HISTORY_KEYS[state.currentUser] || HISTORY_KEYS.kid;
+}
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(getHistoryKey());
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return { totalMins: 0, sessions: [] };
+}
+
+function appendSession(durationMins, note) {
+  const history = loadHistory();
+  history.totalMins = (history.totalMins || 0) + durationMins;
+  const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+  history.sessions = history.sessions.filter(s => s.ts >= cutoff);
+  history.sessions.push({ ts: Date.now(), dur: durationMins, note: note || null });
+  try { localStorage.setItem(getHistoryKey(), JSON.stringify(history)); } catch(e) {}
+}
+
+function fmtMins(m) {
+  if (m < 60) return m + 'm';
+  return Math.floor(m / 60) + 'h ' + (m % 60) + 'm';
+}
+
+function getTodayStart() {
+  const now = Date.now();
+  const d = new Date(now - RESET_HOUR * 3600 * 1000);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime() + RESET_HOUR * 3600 * 1000;
+}
+
 function initFromStorage() {
   const saved = loadData();
   state.items           = saved.items || [];
@@ -952,6 +1243,7 @@ function restoreTimerIfActive() {
       // Timer expired while away — award star and go straight to break
       localStorage.removeItem('pp-timer');
       awardStar(1, true);
+      appendSession(Math.round(t.totalSecs / 60), t.taskLabel || null);
       state.breakDuration   = t.breakSecs;
       state._focusTaskLabel = t.taskLabel;
       showScreen('break');
@@ -1076,16 +1368,17 @@ function showScreen(name) {
   if (name === 'focus')     startFocusTimer();
   if (name === 'break')     startBreakTimer();
   if (name === 'celebrate') onEnterCelebrate();
+  if (name === 'stats')     renderStats();
 }
 
 /* ═══════════════════════════════════════════════════════
    HOME SCREEN
 ═══════════════════════════════════════════════════════ */
 function onEnterHome() {
-  // Check 3am reset on every home-screen entry
   checkDailyReset();
   renderStreakBadge();
   renderStarsDisplay();
+  renderFocusTimeWidget();
   renderChecklist();
   buildTimerPicker();
 }
@@ -1278,6 +1571,8 @@ function startFocusTimer() {
       persistTimerState();
       releaseWakeLock();
       awardStar(1, true);
+      appendSession(Math.round(state.timerDuration / 60), state._focusTaskLabel);
+      recordActiveToday();
       stopAmbientSound();
       playCompletionSound();
       notifyDone('🍅 Pomo done!', 'Time for a break — great work!');
@@ -1776,6 +2071,98 @@ function fallbackCopy(text) {
   ta.focus(); ta.select();
   try { document.execCommand('copy'); } catch(e) {}
   ta.remove();
+}
+
+/* ═══════════════════════════════════════════════════════
+   FOCUS TIME WIDGET + STATS
+═══════════════════════════════════════════════════════ */
+function renderFocusTimeWidget() {
+  const history    = loadHistory();
+  const todayStart = getTodayStart();
+  const weekStart  = todayStart - 6 * 24 * 60 * 60 * 1000;
+  let todayMins = 0, weekMins = 0;
+  history.sessions.forEach(s => {
+    if (s.ts >= weekStart)  weekMins  += s.dur;
+    if (s.ts >= todayStart) todayMins += s.dur;
+  });
+  document.getElementById('ft-today').textContent   = fmtMins(todayMins);
+  document.getElementById('ft-week').textContent    = fmtMins(weekMins);
+  document.getElementById('ft-alltime').textContent = fmtMins(history.totalMins || 0);
+}
+
+function showStats() {
+  showScreen('stats');
+}
+
+function renderStats() {
+  const history    = loadHistory();
+  const now        = Date.now();
+  const todayStart = getTodayStart();
+  const weekStart  = todayStart - 6 * 24 * 60 * 60 * 1000;
+
+  let todayMins = 0, weekMins = 0;
+  history.sessions.forEach(s => {
+    if (s.ts >= weekStart)  weekMins  += s.dur;
+    if (s.ts >= todayStart) todayMins += s.dur;
+  });
+  document.getElementById('stats-today-num').textContent   = fmtMins(todayMins);
+  document.getElementById('stats-week-num').textContent    = fmtMins(weekMins);
+  document.getElementById('stats-alltime-num').textContent = fmtMins(history.totalMins || 0);
+
+  // Bar chart — 7 buckets, index 0 = 6 days ago, index 6 = today
+  const buckets = Array(7).fill(0);
+  history.sessions.forEach(s => {
+    const dayMs   = 24 * 60 * 60 * 1000;
+    const daysAgo = Math.floor((now - s.ts) / dayMs);
+    if (daysAgo < 7) buckets[6 - daysAgo] += s.dur;
+  });
+  const maxMins   = Math.max(...buckets, 1);
+  const chartEl   = document.getElementById('stats-chart');
+  const labelsEl  = document.getElementById('stats-chart-labels');
+  chartEl.innerHTML = '';
+  labelsEl.innerHTML = '';
+  const DAY = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  buckets.forEach((mins, i) => {
+    const bar  = document.createElement('div');
+    bar.className = 'stats-bar';
+    const fill = document.createElement('div');
+    fill.className = 'stats-bar-fill' + (i === 6 ? ' today' : '');
+    fill.style.height = Math.round((mins / maxMins) * 100) + '%';
+    bar.appendChild(fill);
+    chartEl.appendChild(bar);
+    const lbl = document.createElement('div');
+    const d   = new Date(todayStart - (6 - i) * 24 * 60 * 60 * 1000);
+    lbl.textContent = DAY[d.getDay()];
+    if (i === 6) lbl.className = 'today-lbl';
+    labelsEl.appendChild(lbl);
+  });
+
+  // Session log — newest first, last 30
+  const logEl  = document.getElementById('stats-log-list');
+  logEl.innerHTML = '';
+  const recent = history.sessions.slice().reverse().slice(0, 30);
+  if (!recent.length) {
+    logEl.innerHTML = '<div class="stats-log-empty">No sessions yet — complete your first focus block!</div>';
+    return;
+  }
+  recent.forEach(s => {
+    const row  = document.createElement('div');
+    row.className = 'stats-log-row';
+    const d    = new Date(s.ts);
+    const dateStr = d.toLocaleDateString(undefined, { month:'short', day:'numeric' });
+    const timeStr = d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
+    row.innerHTML =
+      '<div class="stats-log-meta">' +
+        '<span class="stats-log-date">' + dateStr + ' · ' + timeStr + '</span>' +
+        '<span class="stats-log-dur">' + s.dur + 'm</span>' +
+      '</div>' +
+      (s.note ? '<div class="stats-log-note">' + escHtml(s.note) + '</div>' : '');
+    logEl.appendChild(row);
+  });
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 /* ═══════════════════════════════════════════════════════
