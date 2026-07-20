@@ -35,6 +35,7 @@ const CUSTOMERS = ['🧒', '👧', '👦', '🧑‍🦱', '👩‍🦰', '🧔',
 // ── SETTINGS / PERSISTENCE ────────────────────────
 const defaultSettings = {
   shiftLength: 6,
+  hintHighlight: false,
   dishes: { burger: true, sandwich: true, pizza: true, sundae: true, taco: true },
 };
 
@@ -192,7 +193,7 @@ function renderTray(dishId, tier) {
 }
 
 function updateTrayGlow() {
-  const needed = currentRecipe[progressIndex];
+  const needed = settings.hintHighlight ? currentRecipe[progressIndex] : null;
   document.querySelectorAll('#tray .bowl').forEach(b => {
     b.classList.toggle('glow', b.textContent === needed);
   });
@@ -341,6 +342,12 @@ function buildEditScreen() {
   });
 
   document.getElementById('shift-length-val').textContent = settings.shiftLength + ' orders';
+  document.getElementById('hint-toggle').checked = !!settings.hintHighlight;
+}
+
+function toggleHint() {
+  settings.hintHighlight = document.getElementById('hint-toggle').checked;
+  markDirty();
 }
 
 function toggleDish(id) {
