@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🍳 Little Chef Kitchen</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ══ SCREEN 1 – WELCOME ══════════════════════════ -->
+<div id="screen-welcome" class="screen active">
+  <span class="welcome-utensil" style="top:8%;left:6%;animation-duration:5s">🍳</span>
+  <span class="welcome-utensil" style="top:14%;right:8%;animation-duration:6.5s;animation-delay:.6s">🥄</span>
+  <span class="welcome-utensil" style="bottom:12%;left:8%;animation-duration:5.5s;animation-delay:.3s">🔪</span>
+  <span class="welcome-utensil" style="bottom:16%;right:6%;animation-duration:6s;animation-delay:1s">🥣</span>
+
+  <button class="gear-btn" onclick="showScreen('edit')" aria-label="Settings">⚙️</button>
+
+  <div class="welcome-card fade-in-up">
+    <span class="chef-hat">👩‍🍳</span>
+    <h1>Little Chef<br>Kitchen</h1>
+    <div class="sub-row">🍔🍕🥪🍨🌮</div>
+
+    <div class="shift-preview">
+      <div class="sp-label">TODAY'S ORDERS</div>
+      <div class="sp-plates" id="sp-plates">🍽️🍽️🍽️🍽️🍽️🍽️</div>
+    </div>
+
+    <button class="big-btn teal" onclick="startNewDay()">Start Cooking! 🚀</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN 2 – KITCHEN (gameplay) ══════════════════════════ -->
+<div id="screen-kitchen" class="screen">
+  <div class="kitchen-scene">
+
+    <div class="wall">
+      <button class="home-btn" onclick="goWelcome()" aria-label="Home">🏠</button>
+      <div class="window">
+        <div class="sky" id="sky">
+          <span class="cloud" style="top:10px;left:10px">☁️</span>
+          <span class="sun">☀️</span>
+        </div>
+      </div>
+      <div class="progress-pips" id="progress-pips"></div>
+      <span class="hanging-item hi1">🍳</span>
+      <span class="hanging-item hi2">🥄</span>
+    </div>
+
+    <div class="order-rail">
+      <div class="ticket">
+        <div class="ticket-top">
+          <span class="ticket-customer" id="ticket-customer">🧒</span>
+          <span class="ticket-dish-icon" id="ticket-dish-icon">🍔</span>
+        </div>
+        <div class="ticket-recipe" id="ticket-recipe"></div>
+      </div>
+    </div>
+
+    <div class="board-area">
+      <div class="steam s1"></div>
+      <div class="steam s2"></div>
+      <div class="cook-stack">
+        <div class="stove"></div>
+        <div class="board" id="board"></div>
+      </div>
+      <button class="serve-bell" id="serve-bell" onclick="serveOrder()" disabled aria-label="Serve">🔔</button>
+    </div>
+
+    <div class="counter">
+      <div class="tray" id="tray"></div>
+    </div>
+  </div>
+
+  <div class="reaction-overlay" id="reaction-overlay">
+    <div class="reaction-card">
+      <span class="reaction-avatar" id="reaction-avatar">🧒</span>
+      <div class="reaction-stars" id="reaction-stars"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 3 – RECAP / SLEEP ══════════════════════════ -->
+<div id="screen-recap" class="screen">
+  <div class="recap-scene phase-evening" id="recap-scene">
+    <div class="moon" id="moon">🌙</div>
+    <div class="recap-stars-bg" id="recap-stars-bg"></div>
+    <div class="zzz" id="zzz">💤</div>
+
+    <div class="recap-card">
+      <span class="recap-chef">👩‍🍳</span>
+      <h2>Shift Complete!</h2>
+      <div class="recap-stars-earned" id="recap-stars-earned"></div>
+      <div class="recap-customers" id="recap-customers"></div>
+      <button class="big-btn teal" onclick="goToSleep()">Go to Sleep 😴</button>
+    </div>
+
+    <div class="wake-wrap" id="wake-btn" style="display:none">
+      <button class="big-btn yellow" onclick="wakeUp()">Good Morning! ☀️</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 4 – EDIT / SETTINGS ══════════════════════════ -->
+<div id="screen-edit" class="screen">
+  <div class="edit-header">
+    <button class="edit-back" onclick="cancelEdit()">← Back</button>
+    <h2>⚙️ Kitchen Settings</h2>
+    <span style="font-size:1.4rem">🍳</span>
+  </div>
+
+  <div class="edit-body">
+    <div class="edit-section-title">🍽️ Dishes on the Menu</div>
+    <div class="dish-grid" id="dish-grid"></div>
+
+    <div class="edit-section-title">📋 Shift Length</div>
+    <div class="setting-row">
+      <label>Orders per shift</label>
+      <div class="stepper">
+        <button class="step-btn" onclick="changeShiftLength(-1)">−</button>
+        <span class="step-val" id="shift-length-val">6 orders</span>
+        <button class="step-btn" onclick="changeShiftLength(1)">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="save-banner" id="save-banner">
+    <p>💾 Unsaved changes!</p>
+    <button class="save-now-btn" id="save-now-btn" onclick="saveEdit()">Save ✅</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
