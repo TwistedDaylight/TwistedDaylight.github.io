@@ -21,10 +21,10 @@
   <div class="welcome-card fade-in-up">
     <span class="chef-hat">👩‍🍳</span>
     <h1>Little Chef<br>Kitchen</h1>
-    <div class="sub-row">🍔🍕🥪🍨🌮</div>
+    <div class="sub-row">🍔🍕🥪🍨🌮🌭🌯</div>
 
     <div class="shift-preview">
-      <div class="sp-label">TODAY'S ORDERS</div>
+      <div class="sp-label"><span id="sp-day">Day 1</span> · Today's Orders</div>
       <div class="sp-plates" id="sp-plates">🍽️🍽️🍽️🍽️🍽️🍽️</div>
     </div>
 
@@ -132,6 +132,21 @@
         <input type="checkbox" id="hint-toggle" onchange="toggleHint()">
         <span class="slider"></span>
       </label>
+    </div>
+    <div class="setting-row">
+      <label>Recipes get harder day by day</label>
+      <div class="stepper">
+        <span class="step-val" id="day-count-val">Day 1</span>
+        <button class="step-btn" onclick="resetDifficulty()" aria-label="Reset difficulty" title="Reset difficulty">↺</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <label>Minimum ingredients per order</label>
+      <div class="stepper">
+        <button class="step-btn" onclick="changeMinIngredients(-1)">−</button>
+        <span class="step-val" id="min-ingredients-val">2 min</span>
+        <button class="step-btn" onclick="changeMinIngredients(1)">+</button>
+      </div>
     </div>
   </div>
 

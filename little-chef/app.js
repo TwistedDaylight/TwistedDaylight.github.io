@@ -1,42 +1,60 @@
 // ── DISH BOOK ──────────────────────────────────────
-// Each dish has 3 tiers of recipes (ordered ingredient stacks).
-// Tier grows from a couple of steps up to 5 as the shift progresses.
+// Each dish has 4 tiers of recipes (ordered ingredient stacks).
+// Tier grows from a couple of steps up to 6 as the shift/days progress.
 const dishBook = {
   burger: { icon: '🍔', tiers: [
     ['🍞', '🥩', '🍞'],
     ['🍞', '🥩', '🧀', '🍞'],
     ['🍞', '🥩', '🧀', '🥬', '🍞'],
+    ['🍞', '🥩', '🧀', '🥬', '🍅', '🍞'],
   ]},
   sandwich: { icon: '🥪', tiers: [
     ['🍞', '🍖', '🍞'],
     ['🍞', '🧀', '🍖', '🍞'],
     ['🍞', '🧀', '🍖', '🍅', '🍞'],
+    ['🍞', '🧀', '🍖', '🍅', '🥬', '🍞'],
   ]},
   pizza: { icon: '🍕', tiers: [
     ['🫓', '🧀'],
     ['🫓', '🍅', '🧀'],
     ['🫓', '🍅', '🧀', '🍄', '🫒'],
+    ['🫓', '🍅', '🧀', '🍄', '🫒', '🧅'],
   ]},
   sundae: { icon: '🍨', tiers: [
     ['🍦', '🍫'],
     ['🍦', '🍦', '🍫'],
     ['🍦', '🍦', '🍫', '🍒', '🍓'],
+    ['🍦', '🍦', '🍦', '🍫', '🍒', '🍓'],
   ]},
   taco: { icon: '🌮', tiers: [
     ['🫓', '🥩'],
     ['🫓', '🥩', '🧀'],
     ['🫓', '🥩', '🧀', '🥬', '🍅'],
+    ['🫓', '🥩', '🧀', '🥬', '🍅', '🧅'],
+  ]},
+  hotdog: { icon: '🌭', tiers: [
+    ['🥖', '🌭'],
+    ['🥖', '🌭', '🍅'],
+    ['🥖', '🌭', '🍅', '🧅', '🧀'],
+    ['🥖', '🌭', '🍅', '🧅', '🧀', '🥒'],
+  ]},
+  wrap: { icon: '🌯', tiers: [
+    ['🫓', '🥬'],
+    ['🫓', '🥬', '🍗'],
+    ['🫓', '🥬', '🍗', '🧀', '🍅'],
+    ['🫓', '🥬', '🍗', '🧀', '🍅', '🥑'],
   ]},
 };
 
-const EXTRA_INGREDIENTS = ['🧅', '🥓', '🍳', '🥒', '🍄', '🫒', '🍓', '🍒'];
+const EXTRA_INGREDIENTS = ['🧅', '🥓', '🍳', '🥒', '🍄', '🫒', '🍓', '🍒', '🥑', '🍗'];
 const CUSTOMERS = ['🧒', '👧', '👦', '🧑‍🦱', '👩‍🦰', '🧔', '👨‍🦳', '👩', '🧑‍🦳', '👴'];
 
 // ── SETTINGS / PERSISTENCE ────────────────────────
 const defaultSettings = {
   shiftLength: 6,
   hintHighlight: false,
-  dishes: { burger: true, sandwich: true, pizza: true, sundae: true, taco: true },
+  minIngredients: 2,
+  dishes: { burger: true, sandwich: true, pizza: true, sundae: true, taco: true, hotdog: true, wrap: true },
 };
 
 function loadSettings() {
@@ -53,6 +71,20 @@ function persistSettings() {
 let settings = loadSettings();
 let editDirty = false;
 
+// ── PROGRESS (persists difficulty ramp across days) ─
+function loadProgress() {
+  try {
+    const p = localStorage.getItem('lc_progress');
+    if (p) return { daysPlayed: 0, ...JSON.parse(p) };
+  } catch (e) {}
+  return { daysPlayed: 0 };
+}
+function persistProgress() {
+  try { localStorage.setItem('lc_progress', JSON.stringify(progress)); } catch (e) {}
+}
+
+let progress = loadProgress();
+
 // ── GAME STATE ─────────────────────────────────────
 let orderIndex = 0;          // 0-based index within the current shift
 let starsThisShift = [];
@@ -64,7 +96,10 @@ let lastDish = null;
 let currentCustomer = '🧒';
 
 // ── SCREEN ROUTER ──────────────────────────────────
+let currentScreenName = 'welcome';
+
 function showScreen(name) {
+  currentScreenName = name;
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
   if (name === 'welcome') updateWelcomePreview();
@@ -73,9 +108,28 @@ function showScreen(name) {
 
 function updateWelcomePreview() {
   document.getElementById('sp-plates').textContent = '🍽️'.repeat(settings.shiftLength);
+  document.getElementById('sp-day').textContent = 'Day ' + (progress.daysPlayed + 1);
 }
 
 function goWelcome() { showScreen('welcome'); }
+
+// ── BACK BUTTON TRAP ─────────────────────────────────
+// The ingredient tray sits near the bottom edge, right where a phone's
+// back gesture/button lives, so an accidental swipe/tap there shouldn't
+// exit the game. Instead of leaving the page, a back press asks for
+// confirmation and — if confirmed — bounces to the welcome screen (or
+// cancels the edit screen, which has its own unsaved-changes check).
+// Only a back press from the welcome screen itself is allowed to leave.
+function armBackTrap() {
+  history.pushState({ lcTrap: true }, '', location.href);
+}
+window.addEventListener('popstate', () => {
+  if (currentScreenName === 'welcome') return;
+  armBackTrap();
+  if (currentScreenName === 'edit') { cancelEdit(); return; }
+  if (confirm("Go back to the start? You'll lose this order.")) goWelcome();
+});
+armBackTrap();
 
 // ── STARTING / RUNNING A SHIFT ─────────────────────
 function startNewDay() {
@@ -129,11 +183,25 @@ function pickDish() {
   return id;
 }
 
+const MAX_TIER = 3; // each dish has 4 tiers, indices 0-3
+
+// Tier climbs within a shift (simple orders first, harder ones later),
+// and the starting floor rises the more days the child has played —
+// every 2 days completed bumps the minimum tier by one, so returning
+// players see harder recipes sooner instead of re-starting from scratch.
 function tierForProgress() {
   const frac = settings.shiftLength > 0 ? orderIndex / settings.shiftLength : 0;
-  if (frac < 0.34) return 0;
-  if (frac < 0.7) return 1;
-  return 2;
+  const withinShiftTier = frac < 0.25 ? 0 : frac < 0.5 ? 1 : frac < 0.75 ? 2 : 3;
+  const dayBoost = Math.floor(progress.daysPlayed / 2);
+  return Math.min(MAX_TIER, withinShiftTier + dayBoost);
+}
+
+// Walks up from the computed tier until the recipe meets the parent-set
+// minimum ingredient count (or runs out of harder tiers to try).
+function tierMeetingMinimum(dish, tier) {
+  let idx = Math.min(tier, dish.tiers.length - 1);
+  while (idx < dish.tiers.length - 1 && dish.tiers[idx].length < settings.minIngredients) idx++;
+  return idx;
 }
 
 function nextOrder() {
@@ -144,7 +212,7 @@ function nextOrder() {
 
   const dishId = pickDish();
   const dish = dishBook[dishId];
-  const tier = Math.min(tierForProgress(), dish.tiers.length - 1);
+  const tier = tierMeetingMinimum(dish, tierForProgress());
   currentRecipe = dish.tiers[tier].slice();
   progressIndex = 0;
   wrongTapsThisOrder = 0;
@@ -304,6 +372,8 @@ function showWake() {
 }
 
 function wakeUp() {
+  progress.daysPlayed++;
+  persistProgress();
   startNewDay();
 }
 
@@ -343,11 +413,26 @@ function buildEditScreen() {
 
   document.getElementById('shift-length-val').textContent = settings.shiftLength + ' orders';
   document.getElementById('hint-toggle').checked = !!settings.hintHighlight;
+  document.getElementById('day-count-val').textContent = 'Day ' + (progress.daysPlayed + 1);
+  document.getElementById('min-ingredients-val').textContent = settings.minIngredients + ' min';
+}
+
+function changeMinIngredients(delta) {
+  settings.minIngredients = Math.min(6, Math.max(2, settings.minIngredients + delta));
+  document.getElementById('min-ingredients-val').textContent = settings.minIngredients + ' min';
+  markDirty();
 }
 
 function toggleHint() {
   settings.hintHighlight = document.getElementById('hint-toggle').checked;
   markDirty();
+}
+
+function resetDifficulty() {
+  if (!confirm('Reset back to Day 1 difficulty?')) return;
+  progress.daysPlayed = 0;
+  persistProgress();
+  document.getElementById('day-count-val').textContent = 'Day 1';
 }
 
 function toggleDish(id) {
