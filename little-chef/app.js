@@ -330,30 +330,46 @@ function openChop(icon) {
   choppingIcon = icon;
   choppedCount = 0;
   chopDragAccum = 0;
+
   const wrap = document.getElementById('chop-ingredient-wrap');
+  // Suppress the CSS transition while resetting, otherwise removing
+  // 'split' animates the halves back together instead of snapping
+  // instantly to whole, which read as the ingredient starting in two
+  // fading-together pieces.
+  wrap.classList.add('no-anim');
   wrap.classList.remove('split', 'hit');
-  document.getElementById('chop-ingredient-left').textContent = icon;
-  document.getElementById('chop-ingredient-right').textContent = icon;
-  document.getElementById('chop-knife').style.left = '0px';
-  renderChopProgress();
+  document.getElementById('chop-ingredient-top').textContent = icon;
+  document.getElementById('chop-ingredient-bottom').textContent = icon;
+  positionKnifeAt(null); // center it
+  void wrap.offsetWidth;
+  wrap.classList.remove('no-anim');
+
   document.getElementById('chop-overlay').classList.add('show');
 }
 
-function renderChopProgress() {
-  const wrap = document.getElementById('chop-progress');
-  wrap.innerHTML = '';
-  for (let i = 0; i < CHOPS_NEEDED; i++) {
-    const span = document.createElement('span');
-    span.textContent = '🔪';
-    span.className = i < choppedCount ? 'done' : '';
-    wrap.appendChild(span);
+// Positions the knife under the given pointer clientX (or centered when
+// clientX is null), clamped to the board. The track spans the whole
+// board, so a drag anywhere across the ingredient — not just on the
+// small knife icon — moves it.
+function positionKnifeAt(clientX) {
+  const knife = document.getElementById('chop-knife');
+  const track = document.getElementById('knife-track');
+  const maxLeft = track.clientWidth - knife.clientWidth;
+  let left;
+  if (clientX === null) {
+    left = maxLeft / 2;
+  } else {
+    const rect = track.getBoundingClientRect();
+    left = clientX - rect.left - knife.clientWidth / 2;
   }
+  knife.style.left = Math.max(0, Math.min(maxLeft, left)) + 'px';
 }
 
 function chopPointerDown(e) {
   if (!choppingIcon) return;
   chopDragging = true;
   chopLastX = e.clientX;
+  positionKnifeAt(e.clientX);
   e.target.setPointerCapture(e.pointerId);
 }
 
@@ -361,12 +377,7 @@ function chopPointerMove(e) {
   if (!chopDragging) return;
   const dx = e.clientX - chopLastX;
   chopLastX = e.clientX;
-
-  const knife = document.getElementById('chop-knife');
-  const track = document.getElementById('knife-track');
-  const maxLeft = track.clientWidth - knife.clientWidth;
-  const newLeft = Math.max(0, Math.min(maxLeft, knife.offsetLeft + dx));
-  knife.style.left = newLeft + 'px';
+  positionKnifeAt(e.clientX);
 
   chopDragAccum += Math.abs(dx);
   if (chopDragAccum >= CHOP_DRAG_DISTANCE) {
@@ -382,7 +393,6 @@ function chopPointerUp() {
 function registerChop() {
   if (!choppingIcon || choppedCount >= CHOPS_NEEDED) return;
   choppedCount++;
-  renderChopProgress();
 
   const wrap = document.getElementById('chop-ingredient-wrap');
   wrap.classList.remove('hit');
@@ -586,9 +596,10 @@ function cancelEdit() {
 // ── INIT ──────────────────────────────────────────
 updateWelcomePreview();
 
-const chopKnife = document.getElementById('chop-knife');
-chopKnife.style.touchAction = 'none';
-chopKnife.addEventListener('pointerdown', chopPointerDown);
-chopKnife.addEventListener('pointermove', chopPointerMove);
-chopKnife.addEventListener('pointerup', chopPointerUp);
-chopKnife.addEventListener('pointercancel', chopPointerUp);
+// Drag handlers live on the track (the whole board), not the knife icon
+// itself, so the child can drag anywhere across the ingredient.
+const chopTrack = document.getElementById('knife-track');
+chopTrack.addEventListener('pointerdown', chopPointerDown);
+chopTrack.addEventListener('pointermove', chopPointerMove);
+chopTrack.addEventListener('pointerup', chopPointerUp);
+chopTrack.addEventListener('pointercancel', chopPointerUp);

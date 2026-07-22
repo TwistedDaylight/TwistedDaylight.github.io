@@ -294,50 +294,54 @@ body {
 }
 .chop-overlay.show { opacity: 1; pointer-events: auto; }
 .chop-card {
-  background: white; border-radius: 28px; padding: 22px 24px 26px; text-align: center;
+  background: white; border-radius: 28px; padding: 20px 20px 24px; text-align: center;
   box-shadow: 0 16px 40px rgba(0,0,0,.3); transform: scale(.7); transition: transform .3s;
-  width: 260px;
+  width: 300px;
 }
 .chop-overlay.show .chop-card { transform: scale(1); }
 
 .chop-board {
-  width: 140px; height: 100px; margin: 0 auto 14px;
+  width: 260px; height: 210px; margin: 0 auto 14px; position: relative;
   background: linear-gradient(180deg, var(--wood) 0%, var(--wood-dark) 100%);
   border: 4px solid var(--wood-deep); border-radius: 14px;
   display: flex; align-items: center; justify-content: center;
   box-shadow: inset 0 2px 6px rgba(0,0,0,.2);
+  overflow: hidden;
 }
-.chop-ingredient-wrap { position: relative; width: 84px; height: 84px; }
+.chop-ingredient-wrap { position: relative; width: 180px; height: 180px; }
 .chop-half {
-  position: absolute; inset: 0; font-size: 62px;
+  position: absolute; inset: 0; font-size: 140px;
   display: flex; align-items: center; justify-content: center;
   transition: transform .45s ease, opacity .45s ease;
 }
-.chop-left  { clip-path: inset(0 50% 0 0); }
-.chop-right { clip-path: inset(0 0 0 50%); }
+/* Split along a horizontal line — top/bottom halves — since the knife
+   is dragged back and forth horizontally along that same line. */
+.chop-top    { clip-path: inset(0 0 50% 0); }
+.chop-bottom { clip-path: inset(50% 0 0 0); }
+/* Suppress the transform/opacity transition while resetting for a new
+   ingredient, so the halves snap together instantly instead of visibly
+   animating back from wherever the previous split left them. */
+.chop-ingredient-wrap.no-anim .chop-half { transition: none; }
 .chop-ingredient-wrap.hit { animation: chopHit .18s ease; }
 @keyframes chopHit {
-  0%,100% { transform: translateX(0); }
-  30%     { transform: translateX(-5px) rotate(-3deg); }
-  60%     { transform: translateX(5px) rotate(3deg); }
+  0%,100% { transform: translateY(0); }
+  30%     { transform: translateY(-4px); }
+  60%     { transform: translateY(4px); }
 }
-.chop-ingredient-wrap.split .chop-left  { transform: translate(-26px, 6px) rotate(-14deg); opacity: 0; }
-.chop-ingredient-wrap.split .chop-right { transform: translate(26px, 6px) rotate(14deg);  opacity: 0; }
+.chop-ingredient-wrap.split .chop-top    { transform: translate(-6px, -40px) rotate(-8deg); opacity: 0; }
+.chop-ingredient-wrap.split .chop-bottom { transform: translate(6px, 40px) rotate(8deg);   opacity: 0; }
 
-.chop-progress { font-size: 20px; letter-spacing: 6px; margin-bottom: 12px; }
-.chop-progress span { opacity: .3; filter: grayscale(1); }
-.chop-progress span.done { opacity: 1; filter: none; }
-
+/* Covers the whole board so a drag anywhere across the ingredient
+   moves the knife — no need to precisely grab the small icon. */
 .knife-track {
-  position: relative; height: 46px; background: #F0F0F0; border-radius: 12px;
-  margin: 0 6px;
+  position: absolute; inset: 0; touch-action: none; cursor: grab;
 }
+.knife-track:active { cursor: grabbing; }
 .knife {
-  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-  font-size: 34px; cursor: grab; touch-action: none; user-select: none;
-  padding: 4px 8px;
+  position: absolute; top: 50%; left: 0; transform: translateY(-50%);
+  font-size: 92px; user-select: none; pointer-events: none;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,.4));
 }
-.knife:active { cursor: grabbing; }
 
 /* confetti */
 .confetti-piece {
