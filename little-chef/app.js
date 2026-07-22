@@ -32,12 +32,6 @@ const dishBook = {
     ['🫓', '🥩', '🧀', '🥬', '🍅'],
     ['🫓', '🥩', '🧀', '🥬', '🍅', '🧅'],
   ]},
-  hotdog: { icon: '🌭', tiers: [
-    ['🥖', '🌭'],
-    ['🥖', '🌭', '🍅'],
-    ['🥖', '🌭', '🍅', '🧅', '🧀'],
-    ['🥖', '🌭', '🍅', '🧅', '🧀', '🥒'],
-  ]},
   wrap: { icon: '🌯', tiers: [
     ['🫓', '🥬'],
     ['🫓', '🥬', '🍗'],
@@ -54,7 +48,7 @@ const defaultSettings = {
   shiftLength: 6,
   hintHighlight: false,
   minIngredients: 2,
-  dishes: { burger: true, sandwich: true, pizza: true, sundae: true, taco: true, hotdog: true, wrap: true },
+  dishes: { burger: true, sandwich: true, pizza: true, sundae: true, taco: true, wrap: true },
 };
 
 function loadSettings() {
@@ -111,7 +105,10 @@ function updateWelcomePreview() {
   document.getElementById('sp-day').textContent = 'Day ' + (progress.daysPlayed + 1);
 }
 
-function goWelcome() { showScreen('welcome'); }
+function goWelcome() {
+  resetChopOverlay();
+  showScreen('welcome');
+}
 
 // ── BACK BUTTON TRAP ─────────────────────────────────
 // The ingredient tray sits near the bottom edge, right where a phone's
@@ -171,7 +168,9 @@ function updateSky() {
 }
 
 function activeDishIds() {
-  return Object.entries(settings.dishes).filter(([, on]) => on).map(([id]) => id);
+  // dishBook[id] guard: ignores any stale dish id left in a returning
+  // player's saved settings after a menu item is removed from the game.
+  return Object.entries(settings.dishes).filter(([id, on]) => on && dishBook[id]).map(([id]) => id);
 }
 
 function pickDish() {
@@ -277,31 +276,138 @@ function shuffle(arr) {
 }
 
 // ── TAP INGREDIENT ─────────────────────────────────
+// These ingredients need a quick chop on the board before they'll stack —
+// a global set rather than a per-recipe flag, so only recipes that
+// happen to include one of these ever trigger the mini-game.
+const CHOPPABLE = new Set(['🍅', '🧅', '🧀', '🥬']);
+
 function tapIngredient(icon, bowlEl) {
-  if (progressIndex >= currentRecipe.length) return;
+  if (progressIndex >= currentRecipe.length || choppingIcon) return;
 
   if (icon === currentRecipe[progressIndex]) {
-    const board = document.getElementById('board');
-    const span = document.createElement('span');
-    span.className = 'stacked';
-    span.textContent = icon;
-    board.appendChild(span);
-
-    progressIndex++;
-    renderTicket();
-    updateTrayGlow();
-
-    if (progressIndex === currentRecipe.length) {
-      const bell = document.getElementById('serve-bell');
-      bell.classList.add('ready');
-      bell.disabled = false;
-    }
+    if (CHOPPABLE.has(icon)) openChop(icon);
+    else stackIngredient(icon);
   } else {
     bowlEl.classList.remove('shake');
     void bowlEl.offsetWidth;
     bowlEl.classList.add('shake');
     wrongTapsThisOrder++;
   }
+}
+
+function stackIngredient(icon) {
+  const board = document.getElementById('board');
+  const span = document.createElement('span');
+  span.className = 'stacked';
+  span.textContent = icon;
+  board.appendChild(span);
+
+  progressIndex++;
+  renderTicket();
+  updateTrayGlow();
+
+  if (progressIndex === currentRecipe.length) {
+    const bell = document.getElementById('serve-bell');
+    bell.classList.add('ready');
+    bell.disabled = false;
+  }
+}
+
+// ── CHOPPING MINIGAME ────────────────────────────────
+// Drag the knife back and forth over the ingredient to chop it. Tracks
+// cumulative drag distance rather than requiring a precise swipe
+// direction, so a young child sawing the knife back and forth works fine.
+const CHOPS_NEEDED = 3;
+const CHOP_DRAG_DISTANCE = 55; // px of cumulative movement per chop
+
+let choppingIcon = null;
+let choppedCount = 0;
+let chopDragAccum = 0;
+let chopDragging = false;
+let chopLastX = 0;
+
+function openChop(icon) {
+  choppingIcon = icon;
+  choppedCount = 0;
+  chopDragAccum = 0;
+  const wrap = document.getElementById('chop-ingredient-wrap');
+  wrap.classList.remove('split', 'hit');
+  document.getElementById('chop-ingredient-left').textContent = icon;
+  document.getElementById('chop-ingredient-right').textContent = icon;
+  document.getElementById('chop-knife').style.left = '0px';
+  renderChopProgress();
+  document.getElementById('chop-overlay').classList.add('show');
+}
+
+function renderChopProgress() {
+  const wrap = document.getElementById('chop-progress');
+  wrap.innerHTML = '';
+  for (let i = 0; i < CHOPS_NEEDED; i++) {
+    const span = document.createElement('span');
+    span.textContent = '🔪';
+    span.className = i < choppedCount ? 'done' : '';
+    wrap.appendChild(span);
+  }
+}
+
+function chopPointerDown(e) {
+  if (!choppingIcon) return;
+  chopDragging = true;
+  chopLastX = e.clientX;
+  e.target.setPointerCapture(e.pointerId);
+}
+
+function chopPointerMove(e) {
+  if (!chopDragging) return;
+  const dx = e.clientX - chopLastX;
+  chopLastX = e.clientX;
+
+  const knife = document.getElementById('chop-knife');
+  const track = document.getElementById('knife-track');
+  const maxLeft = track.clientWidth - knife.clientWidth;
+  const newLeft = Math.max(0, Math.min(maxLeft, knife.offsetLeft + dx));
+  knife.style.left = newLeft + 'px';
+
+  chopDragAccum += Math.abs(dx);
+  if (chopDragAccum >= CHOP_DRAG_DISTANCE) {
+    chopDragAccum -= CHOP_DRAG_DISTANCE;
+    registerChop();
+  }
+}
+
+function chopPointerUp() {
+  chopDragging = false;
+}
+
+function registerChop() {
+  if (!choppingIcon || choppedCount >= CHOPS_NEEDED) return;
+  choppedCount++;
+  renderChopProgress();
+
+  const wrap = document.getElementById('chop-ingredient-wrap');
+  wrap.classList.remove('hit');
+  void wrap.offsetWidth;
+  wrap.classList.add('hit');
+
+  if (choppedCount >= CHOPS_NEEDED) finishChop();
+}
+
+function finishChop() {
+  const icon = choppingIcon;
+  const overlay = document.getElementById('chop-overlay');
+  document.getElementById('chop-ingredient-wrap').classList.add('split');
+
+  setTimeout(() => {
+    overlay.classList.remove('show');
+    choppingIcon = null;
+    stackIngredient(icon);
+  }, 550);
+}
+
+function resetChopOverlay() {
+  choppingIcon = null;
+  chopDragging = false;
+  document.getElementById('chop-overlay').classList.remove('show');
 }
 
 // ── SERVE ───────────────────────────────────────────
@@ -479,3 +585,10 @@ function cancelEdit() {
 
 // ── INIT ──────────────────────────────────────────
 updateWelcomePreview();
+
+const chopKnife = document.getElementById('chop-knife');
+chopKnife.style.touchAction = 'none';
+chopKnife.addEventListener('pointerdown', chopPointerDown);
+chopKnife.addEventListener('pointermove', chopPointerMove);
+chopKnife.addEventListener('pointerup', chopPointerUp);
+chopKnife.addEventListener('pointercancel', chopPointerUp);
