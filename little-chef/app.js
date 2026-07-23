@@ -38,6 +38,20 @@ const dishBook = {
     ['🫓', '🥬', '🍗', '🧀', '🍅'],
     ['🫓', '🥬', '🍗', '🧀', '🍅', '🥑'],
   ]},
+  // minTier: only enters the rotation once an order's tier has reached
+  // this floor — keeps baking recipes from showing up on day one.
+  cake: { icon: '🍰', minTier: 2, tiers: [
+    ['🌾', '🥚'],
+    ['🌾', '🥚', '🥛'],
+    ['🌾', '🥚', '🥛', '🧈', '🍫'],
+    ['🌾', '🥚', '🥛', '🧈', '🍫', '🍓'],
+  ]},
+  cupcake: { icon: '🧁', minTier: 2, tiers: [
+    ['🌾', '🥚'],
+    ['🌾', '🥚', '🥛'],
+    ['🌾', '🥚', '🥛', '🧈', '🍒'],
+    ['🌾', '🥚', '🥛', '🧈', '🍒', '🍫'],
+  ]},
 };
 
 const EXTRA_INGREDIENTS = ['🧅', '🥓', '🍳', '🥒', '🍄', '🫒', '🍓', '🍒', '🥑', '🍗'];
@@ -48,7 +62,7 @@ const defaultSettings = {
   shiftLength: 6,
   hintHighlight: false,
   minIngredients: 2,
-  dishes: { burger: true, sandwich: true, pizza: true, sundae: true, taco: true, wrap: true },
+  dishes: { burger: true, sandwich: true, pizza: true, sundae: true, taco: true, wrap: true, cake: true, cupcake: true },
 };
 
 function loadSettings() {
@@ -173,10 +187,11 @@ function activeDishIds() {
   return Object.entries(settings.dishes).filter(([id, on]) => on && dishBook[id]).map(([id]) => id);
 }
 
-function pickDish() {
-  let ids = activeDishIds();
+function pickDish(tier) {
+  let ids = activeDishIds().filter(id => tier >= (dishBook[id].minTier || 0));
+  if (!ids.length) ids = activeDishIds(); // nothing unlocked yet at this tier
   if (!ids.length) ids = Object.keys(dishBook); // safety net
-  if (ids.length > 1 && lastDish) ids = ids.filter(id => id !== lastDish);
+  if (ids.length > 1 && lastDish && ids.includes(lastDish)) ids = ids.filter(id => id !== lastDish);
   const id = ids[Math.floor(Math.random() * ids.length)];
   lastDish = id;
   return id;
@@ -209,9 +224,10 @@ function nextOrder() {
   updateSky();
   updateProgressPips();
 
-  const dishId = pickDish();
+  const baseTier = tierForProgress();
+  const dishId = pickDish(baseTier);
   const dish = dishBook[dishId];
-  const tier = tierMeetingMinimum(dish, tierForProgress());
+  const tier = tierMeetingMinimum(dish, baseTier);
   currentRecipe = dish.tiers[tier].slice();
   progressIndex = 0;
   wrongTapsThisOrder = 0;
