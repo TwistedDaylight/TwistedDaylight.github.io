@@ -1,7 +1,7 @@
 // Bumped by hand on every change that gets deployed — shown in Kitchen
 // Settings so it's obvious at a glance whether a device is running the
 // latest build (no build step in this project to stamp it automatically).
-const BUILD_STAMP = '2026-07-24 15:42 UTC';
+const BUILD_STAMP = '2026-07-24 15:52 UTC';
 
 // ── DISH BOOK ──────────────────────────────────────
 // Each dish has 4 tiers of recipes (ordered ingredient stacks).
@@ -275,10 +275,13 @@ function renderTray(dishId, tier) {
 
   const tray = document.getElementById('tray');
   tray.innerHTML = '';
-  // Force a column count that always fits the tray in 2 rows, regardless
-  // of how many ingredients + decoys are in it, instead of letting
-  // auto-fill wrap to however many rows the width happens to allow.
-  const cols = Math.max(1, Math.ceil(trayIcons.length / 2));
+  // Cap at TRAY_MAX_COLS so a big tray (up to 9 items) always wraps to at
+  // most 2 rows, but a small tray (2-5 items, the common case) still gets
+  // one column per item instead of being squeezed into fewer, wider
+  // columns — bowls are aspect-ratio:1, so an overly wide column turns
+  // into a giant circle.
+  const TRAY_MAX_COLS = 5;
+  const cols = Math.min(trayIcons.length, TRAY_MAX_COLS);
   tray.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
   trayIcons.forEach(icon => {
     const bowl = document.createElement('div');
