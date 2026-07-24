@@ -88,7 +88,8 @@ body {
 /* ══════════════════════ KITCHEN (gameplay) ══════════════════════ */
 #screen-kitchen { position: relative; }
 .kitchen-scene {
-  width: 100%; min-height: 100vh; display: flex; flex-direction: column;
+  width: 100%; height: 100vh; overflow: hidden;
+  display: flex; flex-direction: column;
   background:
     repeating-linear-gradient(0deg, var(--tile-line) 0 2px, transparent 2px 46px),
     repeating-linear-gradient(90deg, var(--tile-line) 0 2px, transparent 2px 46px),
@@ -186,7 +187,7 @@ body {
 
 /* -- board / assembly area -- */
 .board-area {
-  flex: 1; display: flex; flex-direction: column; align-items: center;
+  flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center;
   justify-content: center; position: relative; padding: 10px 16px; gap: 22px;
 }
 .steam {
@@ -217,12 +218,13 @@ body {
 
 .board {
   position: relative; z-index: 1;
-  width: 168px; min-height: 66px; border-radius: 18px;
+  width: 168px; min-height: 66px; max-height: 32vh; border-radius: 18px;
   background: linear-gradient(180deg, var(--wood) 0%, var(--wood-dark) 100%);
   border: 4px solid var(--wood-deep);
   box-shadow: 0 8px 18px rgba(0,0,0,.25);
   display: flex; flex-direction: column-reverse; align-items: center;
   padding: 8px 6px; gap: 2px;
+  overflow-y: auto;
 }
 .board .stacked {
   font-size: 34px; animation: plop .3s ease;

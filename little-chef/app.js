@@ -40,17 +40,22 @@ const dishBook = {
   ]},
   // minTier: only enters the rotation once an order's tier has reached
   // this floor — keeps baking recipes from showing up on day one.
+  // 🥣 (bowl) and 🍯 (honey) stand in for flour and sugar since Unicode
+  // has no dedicated emoji for either.
   cake: { icon: '🍰', minTier: 2, tiers: [
-    ['🌾', '🥚'],
-    ['🌾', '🥚', '🥛'],
-    ['🌾', '🥚', '🥛', '🧈', '🍫'],
-    ['🌾', '🥚', '🥛', '🧈', '🍫', '🍓'],
+    ['🥣', '🥚'],
+    ['🥣', '🥚', '🥛'],
+    ['🥣', '🥚', '🥛', '🧈', '🍫'],
+    ['🥣', '🥚', '🥛', '🧈', '🍫', '🍓'],
   ]},
+  // Base is butter+egg (no bowl/flour step), sweetened with honey third,
+  // then decorated with cherry and candy sprinkles — deliberately a
+  // different ingredient set from cake so the two never look alike.
   cupcake: { icon: '🧁', minTier: 2, tiers: [
-    ['🌾', '🥚'],
-    ['🌾', '🥚', '🥛'],
-    ['🌾', '🥚', '🥛', '🧈', '🍒'],
-    ['🌾', '🥚', '🥛', '🧈', '🍒', '🍫'],
+    ['🧈', '🥚'],
+    ['🧈', '🥚', '🍯'],
+    ['🧈', '🥚', '🍯', '🍒', '🍬'],
+    ['🧈', '🥚', '🍯', '🍒', '🍬', '🍫'],
   ]},
 };
 
@@ -265,6 +270,11 @@ function renderTray(dishId, tier) {
 
   const tray = document.getElementById('tray');
   tray.innerHTML = '';
+  // Force a column count that always fits the tray in 2 rows, regardless
+  // of how many ingredients + decoys are in it, instead of letting
+  // auto-fill wrap to however many rows the width happens to allow.
+  const cols = Math.max(1, Math.ceil(trayIcons.length / 2));
+  tray.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
   trayIcons.forEach(icon => {
     const bowl = document.createElement('div');
     bowl.className = 'bowl';
