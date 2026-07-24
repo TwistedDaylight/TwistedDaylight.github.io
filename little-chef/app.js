@@ -1,3 +1,8 @@
+// Bumped by hand on every change that gets deployed — shown in Kitchen
+// Settings so it's obvious at a glance whether a device is running the
+// latest build (no build step in this project to stamp it automatically).
+const BUILD_STAMP = '2026-07-24 15:42 UTC';
+
 // ── DISH BOOK ──────────────────────────────────────
 // Each dish has 4 tiers of recipes (ordered ingredient stacks).
 // Tier grows from a couple of steps up to 6 as the shift/days progress.
@@ -540,6 +545,7 @@ function launchConfetti() {
 function buildEditScreen() {
   editDirty = false;
   document.getElementById('save-banner').classList.remove('visible');
+  document.getElementById('build-stamp').textContent = 'Updated ' + BUILD_STAMP;
 
   const grid = document.getElementById('dish-grid');
   grid.innerHTML = '';
