@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Ballerwagen" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <title>Ballerwagen Remote</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="disconnected">
+
+  <header class="app-header">
+    <div class="title-row">
+      <span class="status-dot" id="statusDot"></span>
+      <h1>Ballerwagen</h1>
+    </div>
+    <button id="connectBtn" class="connect-btn">Connect</button>
+  </header>
+
+  <div id="statusMessage" class="status-message"></div>
+
+  <main class="controls">
+
+    <section class="mode-grid" id="modeGrid">
+      <button class="mode-btn" data-mode="0">
+        <span class="mode-name">Ambient Idle</span>
+      </button>
+      <button class="mode-btn" data-mode="1">
+        <span class="mode-name">VU Climb</span>
+      </button>
+      <button class="mode-btn" data-mode="2">
+        <span class="mode-name">Marquee Forward</span>
+      </button>
+      <button class="mode-btn" data-mode="3">
+        <span class="mode-name">Chase Pair</span>
+      </button>
+      <button class="mode-btn" data-mode="4">
+        <span class="mode-name">Beat Flash</span>
+      </button>
+      <button class="mode-btn mode-btn-reserved" data-mode="5">
+        <span class="mode-name">Debug</span>
+        <span class="mode-caption">reserved &mdash; Bass Slam (future)</span>
+      </button>
+    </section>
+
+    <section class="slider-block">
+      <div class="slider-row">
+        <label for="brightnessSlider">Brightness</label>
+        <span class="slider-value" id="brightnessValue">0%</span>
+      </div>
+      <input type="range" id="brightnessSlider" min="0" max="100" step="1" value="0" />
+    </section>
+
+    <section class="slider-block">
+      <div class="slider-row">
+        <label for="hueSlider">Hue shift</label>
+        <span class="slider-value" id="hueValue">0&deg;</span>
+      </div>
+      <input type="range" id="hueSlider" min="-180" max="180" step="1" value="0" />
+    </section>
+
+    <details class="advanced">
+      <summary>Advanced / field tuning</summary>
+
+      <fieldset class="field-group">
+        <legend>VU climb</legend>
+
+        <div class="field-row">
+          <label for="vuCeilingMin">Ceiling min</label>
+          <input type="number" id="vuCeilingMin" data-key="vuCeilingMin" min="0" max="200000" step="1" placeholder="75000" />
+        </div>
+        <div class="field-row">
+          <label for="vuCeilingDecay">Ceiling decay</label>
+          <input type="number" id="vuCeilingDecay" data-key="vuCeilingDecay" min="0" max="1" step="0.001" placeholder="0.01" />
+        </div>
+        <div class="field-row">
+          <label for="vuCeilingHeadroom">Ceiling headroom</label>
+          <input type="number" id="vuCeilingHeadroom" data-key="vuCeilingHeadroom" min="0" max="1" step="0.001" placeholder="0.8" />
+        </div>
+        <div class="field-row">
+          <label for="vuFloorMax">Floor max</label>
+          <input type="number" id="vuFloorMax" data-key="vuFloorMax" min="0" max="200000" step="1" placeholder="3000" />
+        </div>
+        <div class="field-row">
+          <label for="vuFloorRecovery">Floor recovery</label>
+          <input type="number" id="vuFloorRecovery" data-key="vuFloorRecovery" min="0" max="1" step="0.001" placeholder="0.01" />
+        </div>
+      </fieldset>
+
+      <fieldset class="field-group">
+        <legend>Beat detector</legend>
+
+        <div class="field-row">
+          <label for="beatBaselineAlpha">Baseline alpha</label>
+          <input type="number" id="beatBaselineAlpha" data-key="beatBaselineAlpha" min="0" max="1" step="0.001" placeholder="0.02" />
+        </div>
+        <div class="field-row">
+          <label for="beatOnsetFactor">Onset factor</label>
+          <input type="number" id="beatOnsetFactor" data-key="beatOnsetFactor" min="1" max="10" step="0.01" placeholder="1.5" />
+        </div>
+        <div class="field-row">
+          <label for="beatAbsFloor">Abs floor</label>
+          <input type="number" id="beatAbsFloor" data-key="beatAbsFloor" min="0" max="200000" step="1" placeholder="20000" />
+        </div>
+        <div class="field-row">
+          <label for="beatSilenceFloor">Silence floor</label>
+          <input type="number" id="beatSilenceFloor" data-key="beatSilenceFloor" min="0" max="200000" step="1" placeholder="6000" />
+        </div>
+        <div class="field-row">
+          <label for="beatSilenceMs">Silence ms</label>
+          <input type="number" id="beatSilenceMs" data-key="beatSilenceMs" min="100" max="60000" step="1" placeholder="3000" />
+        </div>
+        <div class="field-row">
+          <label for="beatTimeoutMs">Timeout ms</label>
+          <input type="number" id="beatTimeoutMs" data-key="beatTimeoutMs" min="100" max="60000" step="1" placeholder="2500" />
+        </div>
+      </fieldset>
+    </details>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
