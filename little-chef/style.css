@@ -233,7 +233,7 @@ body {
 
 .serve-bell {
   border: none; background: #ddd; color: white; font-size: 30px;
-  width: 66px; height: 66px; border-radius: 50%; cursor: not-allowed;
+  width: 66px; height: 66px; flex-shrink: 0; border-radius: 50%; cursor: not-allowed;
   box-shadow: 0 6px 16px rgba(0,0,0,.2); margin-bottom: 12px;
   opacity: .4; transition: all .25s; transform: scale(.9);
 }

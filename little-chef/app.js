@@ -1,47 +1,59 @@
 // Bumped by hand on every change that gets deployed — shown in Kitchen
 // Settings so it's obvious at a glance whether a device is running the
 // latest build (no build step in this project to stamp it automatically).
-const BUILD_STAMP = '2026-07-24 15:52 UTC';
+const BUILD_STAMP = '2026-07-27 18:17 UTC';
 
 // ── DISH BOOK ──────────────────────────────────────
-// Each dish has 4 tiers of recipes (ordered ingredient stacks).
-// Tier grows from a couple of steps up to 6 as the shift/days progress.
+// Each dish has 6 tiers of recipes (ordered ingredient stacks).
+// Tier grows from a couple of steps up to 8 as the shift/days progress.
 const dishBook = {
   burger: { icon: '🍔', tiers: [
     ['🍞', '🥩', '🍞'],
     ['🍞', '🥩', '🧀', '🍞'],
     ['🍞', '🥩', '🧀', '🥬', '🍞'],
     ['🍞', '🥩', '🧀', '🥬', '🍅', '🍞'],
+    ['🍞', '🥩', '🧀', '🥬', '🍅', '🧅', '🍞'],
+    ['🍞', '🥩', '🧀', '🥬', '🍅', '🧅', '🥓', '🍞'],
   ]},
   sandwich: { icon: '🥪', tiers: [
     ['🍞', '🍖', '🍞'],
     ['🍞', '🧀', '🍖', '🍞'],
     ['🍞', '🧀', '🍖', '🍅', '🍞'],
     ['🍞', '🧀', '🍖', '🍅', '🥬', '🍞'],
+    ['🍞', '🧀', '🍖', '🍅', '🥬', '🥒', '🍞'],
+    ['🍞', '🧀', '🍖', '🍅', '🥬', '🥒', '🍳', '🍞'],
   ]},
   pizza: { icon: '🍕', tiers: [
     ['🫓', '🧀'],
     ['🫓', '🍅', '🧀'],
     ['🫓', '🍅', '🧀', '🍄', '🫒'],
     ['🫓', '🍅', '🧀', '🍄', '🫒', '🧅'],
+    ['🫓', '🍅', '🧀', '🍄', '🫒', '🧅', '🥓'],
+    ['🫓', '🍅', '🧀', '🍄', '🫒', '🧅', '🥓', '🥑'],
   ]},
   sundae: { icon: '🍨', tiers: [
     ['🍦', '🍫'],
     ['🍦', '🍦', '🍫'],
     ['🍦', '🍦', '🍫', '🍒', '🍓'],
     ['🍦', '🍦', '🍦', '🍫', '🍒', '🍓'],
+    ['🍦', '🍦', '🍦', '🍦', '🍫', '🍒', '🍓'],
+    ['🍦', '🍦', '🍦', '🍦', '🍫', '🍒', '🍓', '🍯'],
   ]},
   taco: { icon: '🌮', tiers: [
     ['🫓', '🥩'],
     ['🫓', '🥩', '🧀'],
     ['🫓', '🥩', '🧀', '🥬', '🍅'],
     ['🫓', '🥩', '🧀', '🥬', '🍅', '🧅'],
+    ['🫓', '🥩', '🧀', '🥬', '🍅', '🧅', '🥑'],
+    ['🫓', '🥩', '🧀', '🥬', '🍅', '🧅', '🥑', '🥓'],
   ]},
   wrap: { icon: '🌯', tiers: [
     ['🫓', '🥬'],
     ['🫓', '🥬', '🍗'],
     ['🫓', '🥬', '🍗', '🧀', '🍅'],
     ['🫓', '🥬', '🍗', '🧀', '🍅', '🥑'],
+    ['🫓', '🥬', '🍗', '🧀', '🍅', '🥑', '🧅'],
+    ['🫓', '🥬', '🍗', '🧀', '🍅', '🥑', '🧅', '🍄'],
   ]},
   // minTier: only enters the rotation once an order's tier has reached
   // this floor — keeps baking recipes from showing up on day one.
@@ -52,6 +64,8 @@ const dishBook = {
     ['🥣', '🥚', '🥛'],
     ['🥣', '🥚', '🥛', '🧈', '🍫'],
     ['🥣', '🥚', '🥛', '🧈', '🍫', '🍓'],
+    ['🥣', '🥚', '🥛', '🧈', '🍫', '🍓', '🍒'],
+    ['🥣', '🥚', '🥛', '🧈', '🍫', '🍓', '🍒', '🍯'],
   ]},
   // Base is butter+egg (no bowl/flour step), sweetened with honey third,
   // then decorated with cherry and candy sprinkles — deliberately a
@@ -61,11 +75,20 @@ const dishBook = {
     ['🧈', '🥚', '🍯'],
     ['🧈', '🥚', '🍯', '🍒', '🍬'],
     ['🧈', '🥚', '🍯', '🍒', '🍬', '🍫'],
+    ['🧈', '🥚', '🍯', '🍒', '🍬', '🍫', '🥣'],
+    ['🧈', '🥚', '🍯', '🍒', '🍬', '🍫', '🥣', '🥛'],
   ]},
 };
 
 const EXTRA_INGREDIENTS = ['🧅', '🥓', '🍳', '🥒', '🍄', '🫒', '🍓', '🍒', '🥑', '🍗'];
 const CUSTOMERS = ['🧒', '👧', '👦', '🧑‍🦱', '👩‍🦰', '🧔', '👨‍🦳', '👩', '🧑‍🦳', '👴'];
+
+// Tray layout constants: TRAY_MAX_COLS caps the grid at 5 columns so a
+// full tray always wraps to at most 2 rows; MAX_TRAY_ITEMS (2 rows worth)
+// bounds how many decoy ingredients can be added on top of a recipe's
+// own ingredients, so even an 8-step recipe never overflows the grid.
+const TRAY_MAX_COLS = 5;
+const MAX_TRAY_ITEMS = TRAY_MAX_COLS * 2;
 
 // ── SETTINGS / PERSISTENCE ────────────────────────
 const defaultSettings = {
@@ -207,7 +230,7 @@ function pickDish(tier) {
   return id;
 }
 
-const MAX_TIER = 3; // each dish has 4 tiers, indices 0-3
+const MAX_TIER = 5; // each dish has 6 tiers, indices 0-5
 
 // Tier climbs within a shift (simple orders first, harder ones later),
 // and the starting floor rises the more days the child has played —
@@ -215,7 +238,7 @@ const MAX_TIER = 3; // each dish has 4 tiers, indices 0-3
 // players see harder recipes sooner instead of re-starting from scratch.
 function tierForProgress() {
   const frac = settings.shiftLength > 0 ? orderIndex / settings.shiftLength : 0;
-  const withinShiftTier = frac < 0.25 ? 0 : frac < 0.5 ? 1 : frac < 0.75 ? 2 : 3;
+  const withinShiftTier = Math.min(MAX_TIER, Math.floor(frac * (MAX_TIER + 1)));
   const dayBoost = Math.floor(progress.daysPlayed / 2);
   return Math.min(MAX_TIER, withinShiftTier + dayBoost);
 }
@@ -268,19 +291,22 @@ function renderTicket() {
 
 function renderTray(dishId, tier) {
   const uniqueNeeded = [...new Set(currentRecipe)];
-  const distractorCount = tier; // 0, 1, or 2 extra decoy ingredients
+  // Decoys escalate with tier (capped at 3 so it never gets overwhelming)
+  // but never push the tray past MAX_TRAY_ITEMS — an 8-step recipe with
+  // few repeated ingredients can already have 7-8 unique items on its
+  // own, so it gets fewer (or zero) decoys rather than overflowing.
+  const distractorCount = Math.max(0, Math.min(tier, 3, MAX_TRAY_ITEMS - uniqueNeeded.length));
   const pool = EXTRA_INGREDIENTS.filter(i => !uniqueNeeded.includes(i));
   const distractors = shuffle(pool).slice(0, distractorCount);
   const trayIcons = shuffle([...uniqueNeeded, ...distractors]);
 
   const tray = document.getElementById('tray');
   tray.innerHTML = '';
-  // Cap at TRAY_MAX_COLS so a big tray (up to 9 items) always wraps to at
-  // most 2 rows, but a small tray (2-5 items, the common case) still gets
-  // one column per item instead of being squeezed into fewer, wider
-  // columns — bowls are aspect-ratio:1, so an overly wide column turns
-  // into a giant circle.
-  const TRAY_MAX_COLS = 5;
+  // Cap at TRAY_MAX_COLS so a big tray always wraps to at most 2 rows,
+  // but a small tray (2-5 items, the common case) still gets one column
+  // per item instead of being squeezed into fewer, wider columns —
+  // bowls are aspect-ratio:1, so an overly wide column turns into a
+  // giant circle.
   const cols = Math.min(trayIcons.length, TRAY_MAX_COLS);
   tray.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
   trayIcons.forEach(icon => {
@@ -569,7 +595,7 @@ function buildEditScreen() {
 }
 
 function changeMinIngredients(delta) {
-  settings.minIngredients = Math.min(6, Math.max(2, settings.minIngredients + delta));
+  settings.minIngredients = Math.min(8, Math.max(2, settings.minIngredients + delta));
   document.getElementById('min-ingredients-val').textContent = settings.minIngredients + ' min';
   markDirty();
 }
