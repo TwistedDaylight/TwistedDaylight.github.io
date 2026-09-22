@@ -2,204 +2,146 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="theme-color" content="#0d0d0d">
-  <title>Kill Team Ref</title>
+  <title>Kill Team Rules</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- ── RULES TAB ──────────────────────────────────────────────────── -->
-  <div id="panel-rules" class="tab-panel active">
-    <div class="panel-header">
-      <div class="panel-title">Kill Team Rules</div>
-      <div class="panel-subtitle">Reference — tap a rule to expand</div>
-    </div>
-    <div class="search-wrap">
-      <input id="rules-search" class="search-input" type="search"
-             placeholder="Search rules, keywords, tags…" autocomplete="off" autocorrect="off">
-    </div>
-    <div class="year-filter-wrap">
-      <span class="year-filter-label">From</span>
-      <input id="year-from" class="year-input" type="number" min="2018" max="2030"
-             placeholder="2021" inputmode="numeric">
-      <span class="year-sep">→</span>
-      <span class="year-filter-label">To</span>
-      <input id="year-to" class="year-input" type="number" min="2018" max="2030"
-             placeholder="2025" inputmode="numeric">
-      <button id="year-clear" class="year-clear-btn" title="Clear filter">✕</button>
-    </div>
-    <div id="cat-pills" class="cat-pills"></div>
-    <div id="rules-list" class="rules-scroll"></div>
-  </div>
+<!-- ── SETUP / GATE ──────────────────────────────────────────────────── -->
+<div id="screen-setup" class="screen active">
+  <div class="setup-inner">
+    <h1 class="setup-title">Kill Team Rules</h1>
+    <p class="setup-sub">Search and annotate the rules snapshot.</p>
 
-  <!-- ── COMPARE TAB ────────────────────────────────────────────────── -->
-  <div id="panel-compare" class="tab-panel">
-    <div class="panel-header">
-      <div class="panel-title">Compare</div>
-      <div class="panel-subtitle">See how a rule differs between editions</div>
+    <div id="setup-body">
+      <p class="setup-text">
+        Choose the folder Synology Drive syncs — the one holding
+        <code>rules-search.db</code>. The app reads the snapshot from there and
+        writes your annotations back into the same folder.
+      </p>
+      <button id="btn-pick" class="btn btn-primary btn-lg">Choose synced folder</button>
+      <button id="btn-reopen" class="btn btn-ghost btn-lg hidden">Reopen last folder</button>
+      <p id="setup-status" class="setup-status" role="status" aria-live="polite"></p>
     </div>
-    <div class="search-wrap">
-      <input id="compare-search" class="search-input" type="search"
-             placeholder="Search for a rule to compare…" autocomplete="off" autocorrect="off">
-    </div>
-    <div id="compare-suggestions" class="compare-suggestions"></div>
-    <div id="compare-view" class="compare-scroll">
-      <p class="compare-hint">Search for a rule above to compare it between editions.</p>
+
+    <div id="setup-unsupported" class="unsupported hidden">
+      <h2>This browser can't open a folder</h2>
+      <p>
+        The app needs the File System Access API to read the snapshot and write
+        annotations back into the synced folder. This browser doesn't offer it.
+      </p>
+      <table id="cap-table" class="cap-table"></table>
+      <p class="setup-text dim">Try Chrome or Edge on this device.</p>
     </div>
   </div>
+</div>
 
-  <!-- ── TRACKER TAB ────────────────────────────────────────────────── -->
-  <div id="panel-tracker" class="tab-panel">
-    <div class="tracker-inner">
+<!-- ── SEARCH ────────────────────────────────────────────────────────── -->
+<div id="screen-search" class="screen">
+  <div class="topbar">
+    <div class="search-wrap">
+      <input id="q" class="search-input" type="search" placeholder="Search rules and notes…"
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <button id="q-clear" class="q-clear" aria-label="Clear search">✕</button>
+    </div>
+    <div class="filter-row">
+      <button class="pill pill-on" data-filter="all">All</button>
+      <button class="pill" data-filter="flagged">Flagged</button>
+      <button class="pill" data-filter="noted">Noted</button>
+      <button class="pill" data-filter="changed">Unexported</button>
+    </div>
+  </div>
+  <div id="results" class="scroll"></div>
+</div>
 
-      <!-- Turning Point -->
-      <div class="tp-section">
-        <span class="tp-label">Turning Point</span>
-        <div class="tp-controls">
-          <button class="tp-btn" id="tp-prev">◀</button>
-          <div class="tp-display">
-            <span class="tp-current" id="tp-current">1</span>
-            <span class="tp-sep">/</span>
-            <span class="tp-max">4</span>
-          </div>
-          <button class="tp-btn" id="tp-next">▶</button>
-        </div>
+<!-- ── CHAPTER ───────────────────────────────────────────────────────── -->
+<div id="screen-chapter" class="screen">
+  <div class="topbar topbar-row">
+    <button id="btn-back" class="icon-btn" aria-label="Back">‹</button>
+    <div class="topbar-titles">
+      <div id="ch-title" class="topbar-title"></div>
+      <div id="ch-folder" class="topbar-sub"></div>
+    </div>
+  </div>
+  <div class="scroll">
+    <div class="annotate">
+      <label class="flag-row">
+        <input type="checkbox" id="ch-flag">
+        <span class="flag-label">Potentially wrong</span>
+      </label>
+      <textarea id="ch-reason" class="reason-input" rows="2"
+                placeholder="Why does this look wrong? (flag reason)"></textarea>
+
+      <div id="ch-notes" class="notes"></div>
+      <div class="note-add">
+        <textarea id="ch-note-new" class="note-input" rows="2" placeholder="Add a note…"></textarea>
+        <button id="btn-add-note" class="btn btn-small">Add note</button>
       </div>
-
-      <!-- Player columns -->
-      <div class="players-row">
-
-        <!-- Player 0 -->
-        <div class="player-col" id="player-col-0">
-          <div class="player-name-bar">
-            <span class="player-name" id="player-name-0">Player 1</span>
-            <button class="edit-name-btn" onclick="enableNameEdit(0)" title="Rename">✏</button>
-          </div>
-          <div class="counters-grid">
-
-            <div class="counter-block">
-              <span class="counter-label">CP</span>
-              <div class="counter-row">
-                <button class="cnt-btn" onclick="adjustStat(0,'cp',-1)">−</button>
-                <span class="cnt-value" data-stat="cp">0</span>
-                <button class="cnt-btn" onclick="adjustStat(0,'cp',1)">+</button>
-              </div>
-            </div>
-
-            <div class="counter-block">
-              <span class="counter-label">Kill Ops</span>
-              <div class="counter-row">
-                <button class="cnt-btn" onclick="adjustStat(0,'killOps',-1)">−</button>
-                <span class="cnt-value" data-stat="killOps">0</span>
-                <button class="cnt-btn" onclick="adjustStat(0,'killOps',1)">+</button>
-              </div>
-            </div>
-
-            <div class="counter-block">
-              <span class="counter-label">Crit Ops</span>
-              <div class="counter-row">
-                <button class="cnt-btn" onclick="adjustStat(0,'critOps',-1)">−</button>
-                <span class="cnt-value" data-stat="critOps">0</span>
-                <button class="cnt-btn" onclick="adjustStat(0,'critOps',1)">+</button>
-              </div>
-            </div>
-
-            <div class="counter-block">
-              <span class="counter-label">Tac Ops</span>
-              <div class="counter-row">
-                <button class="cnt-btn" onclick="adjustStat(0,'tacOps',-1)">−</button>
-                <span class="cnt-value" data-stat="tacOps">0</span>
-                <button class="cnt-btn" onclick="adjustStat(0,'tacOps',1)">+</button>
-              </div>
-            </div>
-
-            <div class="counter-block">
-              <span class="counter-label" style="color:var(--gold)">Total VP</span>
-              <div class="cnt-value counter-vp-val" style="color:var(--gold)">0</div>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- Player 1 -->
-        <div class="player-col" id="player-col-1">
-          <div class="player-name-bar">
-            <span class="player-name" id="player-name-1">Player 2</span>
-            <button class="edit-name-btn" onclick="enableNameEdit(1)" title="Rename">✏</button>
-          </div>
-          <div class="counters-grid">
-
-            <div class="counter-block">
-              <span class="counter-label">CP</span>
-              <div class="counter-row">
-                <button class="cnt-btn" onclick="adjustStat(1,'cp',-1)">−</button>
-                <span class="cnt-value" data-stat="cp">0</span>
-                <button class="cnt-btn" onclick="adjustStat(1,'cp',1)">+</button>
-              </div>
-            </div>
-
-            <div class="counter-block">
-              <span class="counter-label">Kill Ops</span>
-              <div class="counter-row">
-                <button class="cnt-btn" onclick="adjustStat(1,'killOps',-1)">−</button>
-                <span class="cnt-value" data-stat="killOps">0</span>
-                <button class="cnt-btn" onclick="adjustStat(1,'killOps',1)">+</button>
-              </div>
-            </div>
-
-            <div class="counter-block">
-              <span class="counter-label">Crit Ops</span>
-              <div class="counter-row">
-                <button class="cnt-btn" onclick="adjustStat(1,'critOps',-1)">−</button>
-                <span class="cnt-value" data-stat="critOps">0</span>
-                <button class="cnt-btn" onclick="adjustStat(1,'critOps',1)">+</button>
-              </div>
-            </div>
-
-            <div class="counter-block">
-              <span class="counter-label">Tac Ops</span>
-              <div class="counter-row">
-                <button class="cnt-btn" onclick="adjustStat(1,'tacOps',-1)">−</button>
-                <span class="cnt-value" data-stat="tacOps">0</span>
-                <button class="cnt-btn" onclick="adjustStat(1,'tacOps',1)">+</button>
-              </div>
-            </div>
-
-            <div class="counter-block">
-              <span class="counter-label" style="color:var(--gold)">Total VP</span>
-              <div class="cnt-value counter-vp-val" style="color:var(--gold)">0</div>
-            </div>
-
-          </div>
-        </div>
-
-      </div><!-- /players-row -->
-
-      <button id="reset-game" class="reset-btn">Reset Game</button>
-
-    </div><!-- /tracker-inner -->
+    </div>
+    <article id="ch-body" class="markdown"></article>
   </div>
+</div>
 
-  <!-- ── BOTTOM NAV ──────────────────────────────────────────────────── -->
-  <nav class="nav-bar">
-    <button class="nav-tab active" data-tab="rules">
-      <span class="nav-icon">📖</span>
-      <span>Rules</span>
-    </button>
-    <button class="nav-tab" data-tab="compare">
-      <span class="nav-icon">⚖</span>
-      <span>Compare</span>
-    </button>
-    <button class="nav-tab" data-tab="tracker">
-      <span class="nav-icon">🎯</span>
-      <span>Tracker</span>
-    </button>
-  </nav>
+<!-- ── SETTINGS ──────────────────────────────────────────────────────── -->
+<div id="screen-settings" class="screen">
+  <div class="topbar topbar-row">
+    <div class="topbar-titles"><div class="topbar-title">Settings</div></div>
+  </div>
+  <div class="scroll settings">
+    <section class="card">
+      <h2>This device</h2>
+      <p class="hint">Used in the export filename — keep it stable for this install.</p>
+      <div class="device-row">
+        <input id="device-input" class="text-input" type="text" placeholder="phone">
+        <button id="btn-save-device" class="btn btn-small">Save</button>
+      </div>
+      <p id="device-file" class="hint mono"></p>
+    </section>
 
-  <script src="rules-data.js"></script>
-  <script src="app.js"></script>
+    <section class="card">
+      <h2>Snapshot</h2>
+      <dl class="kv">
+        <dt>Indexed</dt><dd id="snap-when">—</dd>
+        <dt>Age</dt><dd id="snap-age">—</dd>
+        <dt>Chapters</dt><dd id="snap-count">—</dd>
+        <dt>Folder</dt><dd id="snap-folder" class="mono">—</dd>
+      </dl>
+      <button id="btn-reload" class="btn btn-small">Re-read snapshot</button>
+    </section>
+
+    <section class="card">
+      <h2>Export annotations</h2>
+      <p class="hint">
+        Writes <span id="export-name" class="mono">annotations-&lt;device&gt;.json</span>
+        into the synced folder, replacing any previous export.
+      </p>
+      <p id="export-summary" class="export-summary">—</p>
+      <button id="btn-export" class="btn btn-primary">Export annotations</button>
+      <p id="export-status" class="setup-status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <h2>Unexported changes</h2>
+      <div id="changed-list" class="changed-list"></div>
+    </section>
+  </div>
+</div>
+
+<!-- ── NAV ───────────────────────────────────────────────────────────── -->
+<nav id="nav" class="nav hidden">
+  <button class="nav-btn nav-on" data-go="search"><span class="nav-ico">⌕</span>Search</button>
+  <button class="nav-btn" data-go="settings"><span class="nav-ico">⚙</span>Settings<span id="nav-badge" class="badge hidden"></span></button>
+</nav>
+
+<div id="toast" class="toast"></div>
+
+<script type="module" src="app.js"></script>
 </body>
 </html>

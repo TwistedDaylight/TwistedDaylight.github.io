@@ -1,419 +1,573 @@
-'use strict';
+/*
+ * app.js — UI and wiring.
+ *
+ * Flow: pick the synced folder once → read rules-search.db → deserialize into
+ * WASM SQLite → seed the local overlay → search / annotate → export one JSON
+ * file back into the same folder.
+ */
 
-// ── STATE ────────────────────────────────────────────────────────────────────
+import * as DB from './db.js';
+import * as S from './store.js';
+import * as O from './overlay.js';
+import { marked } from './vendor/marked.js';
 
-let activeTab = 'rules';
-let activeCategory = 'all';
-let searchQuery = '';
-let fromYear = null;
-let toYear = null;
+const $ = (id) => document.getElementById(id);
 
-let compareQuery = '';
-let compareResults = [];
-let compareIndex = 0;
+const state = {
+  sqlite3: null,
+  db: null,
+  lastUpdate: null,
+  chapters: new Map(),   // path -> { path, title, folder, ... } from the snapshot
+  overlay: new Map(),    // path -> overlay record
+  dirHandle: null,
+  folderName: '',
+  device: 'phone',
+  filter: 'all',
+  query: '',
+  currentPath: null,
+  writable: false,       // folder permission currently granted
+};
 
-const TRACKER_KEY = 'kt-tracker-v1';
-let tracker = loadTracker();
+/* ------------------------------------------------------------------ helpers */
 
-// ── INIT ─────────────────────────────────────────────────────────────────────
-
-document.addEventListener('DOMContentLoaded', () => {
-  buildCategoryPills();
-  buildRules();
-  bindRulesSearch();
-  bindYearFilter();
-  bindCompareSearch();
-  bindNav();
-  renderTracker();
-  bindTracker();
-});
-
-// ── NAVIGATION ───────────────────────────────────────────────────────────────
-
-function bindNav() {
-  document.querySelectorAll('.nav-tab').forEach(btn => {
-    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-  });
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function switchTab(tabId) {
-  activeTab = tabId;
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('panel-' + tabId).classList.add('active');
-  document.querySelector(`.nav-tab[data-tab="${tabId}"]`).classList.add('active');
+/** snippet() marks are control chars, so escape first then swap in <mark>. */
+function highlight(s) {
+  return escapeHtml(s)
+    .split(DB.HL_OPEN).join('<mark>')
+    .split(DB.HL_CLOSE).join('</mark>');
 }
 
-// ── DATE HELPERS ──────────────────────────────────────────────────────────────
-
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length === 1) return parts[0];
-  const idx = parseInt(parts[1], 10) - 1;
-  return MONTHS[idx] + ' ' + parts[0];
+let toastTimer = null;
+function toast(msg, isError = false) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.toggle('err', !!isError);
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), isError ? 5000 : 2200);
 }
 
-function getYear(dateStr) {
-  return parseInt(dateStr.split('-')[0], 10);
+function debounce(fn, ms) {
+  let t = null;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
-// Sort versions newest first, optionally filtered to a year range.
-function sortedVersions(versions, from, to) {
-  return (versions || [])
-    .filter(v => {
-      const y = getYear(v.date);
-      if (from && y < from) return false;
-      if (to && y > to) return false;
-      return true;
-    })
-    .sort((a, b) => b.date.localeCompare(a.date));
+function relativeAge(unixSeconds) {
+  if (!unixSeconds) return 'unknown';
+  const secs = Math.floor(Date.now() / 1000 - unixSeconds);
+  if (secs < 0) return 'in the future';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return mins <= 1 ? 'just now' : `${mins} minutes old`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return hours === 1 ? '1 hour old' : `${hours} hours old`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? '1 day old' : `${days} days old`;
 }
 
-// ── RULES TAB ─────────────────────────────────────────────────────────────────
-
-function buildCategoryPills() {
-  const wrap = document.getElementById('cat-pills');
-  const allBtn = document.createElement('button');
-  allBtn.className = 'pill active';
-  allBtn.textContent = 'All';
-  allBtn.dataset.cat = 'all';
-  allBtn.addEventListener('click', () => setCat('all'));
-  wrap.appendChild(allBtn);
-
-  KILL_TEAM_DATA.categories.forEach(cat => {
-    const btn = document.createElement('button');
-    btn.className = 'pill';
-    btn.textContent = cat.label;
-    btn.dataset.cat = cat.id;
-    btn.addEventListener('click', () => setCat(cat.id));
-    wrap.appendChild(btn);
-  });
+function formatWhen(unixSeconds) {
+  if (!unixSeconds) return '—';
+  return O.localIsoTimestamp(new Date(unixSeconds * 1000)).replace('T', ' ');
 }
 
-function setCat(catId) {
-  activeCategory = catId;
-  document.querySelectorAll('#cat-pills .pill').forEach(p => {
-    p.classList.toggle('active', p.dataset.cat === catId);
-  });
-  buildRules();
+/* ------------------------------------------------------------------ screens */
+
+function show(screen) {
+  for (const el of document.querySelectorAll('.screen')) el.classList.remove('active');
+  $('screen-' + screen).classList.add('active');
+  const onApp = screen !== 'setup';
+  $('nav').classList.toggle('hidden', !onApp);
+  for (const btn of document.querySelectorAll('.nav-btn')) {
+    const target = btn.dataset.go;
+    btn.classList.toggle('nav-on', target === screen || (screen === 'chapter' && target === 'search'));
+  }
 }
 
-function bindRulesSearch() {
-  const input = document.getElementById('rules-search');
-  input.addEventListener('input', () => {
-    searchQuery = input.value.trim().toLowerCase();
-    buildRules();
-  });
+/* --------------------------------------------------------------- snapshot IO */
+
+async function ensureSqlite() {
+  if (!state.sqlite3) state.sqlite3 = await DB.initSqlite();
+  return state.sqlite3;
 }
 
-function bindYearFilter() {
-  const fromEl = document.getElementById('year-from');
-  const toEl = document.getElementById('year-to');
-  const clearBtn = document.getElementById('year-clear');
+async function loadFromBytes(bytes, { cache = true } = {}) {
+  const sqlite3 = await ensureSqlite();
+  if (state.db) { try { state.db.close(); } catch { /* already gone */ } }
+  state.db = DB.openSnapshot(sqlite3, bytes);
+  state.lastUpdate = DB.readLastUpdate(state.db);
 
-  const update = () => {
-    fromYear = fromEl.value ? parseInt(fromEl.value, 10) : null;
-    toYear = toEl.value ? parseInt(toEl.value, 10) : null;
-    clearBtn.style.display = (fromEl.value || toEl.value) ? 'flex' : 'none';
-    buildRules();
-  };
+  const chapters = DB.readAllChapters(state.db);
+  state.chapters = new Map(chapters.map((c) => [c.path, c]));
+  await syncOverlay(chapters);
 
-  fromEl.addEventListener('input', update);
-  toEl.addEventListener('input', update);
-  clearBtn.addEventListener('click', () => {
-    fromEl.value = '';
-    toEl.value = '';
-    fromYear = null;
-    toYear = null;
-    clearBtn.style.display = 'none';
-    buildRules();
-  });
+  if (cache) {
+    try {
+      await S.setCachedSnapshot(state.lastUpdate, bytes);
+    } catch (e) {
+      // Quota or private mode — the app still works, it just won't survive a
+      // cold launch without folder access.
+      console.warn('Could not cache snapshot:', e);
+    }
+  }
 }
 
-function buildRules() {
-  const container = document.getElementById('rules-list');
-  const filtered = filterRules();
+/**
+ * Reconcile the overlay with the snapshot we just loaded. Only re-seeds when
+ * the snapshot's own timestamp has moved — see overlay.js for why that matters.
+ */
+async function syncOverlay(chapters) {
+  const previousKey = await S.getSnapshotKey();
+  const stored = await S.loadOverlay();
+  const isNewSnapshot = previousKey !== state.lastUpdate;
 
-  if (!filtered.length) {
-    container.innerHTML = '<p class="empty-state">No rules match your filters.</p>';
+  const records = [];
+  for (const ch of chapters) {
+    const existing = stored.get(ch.path);
+    if (!existing) records.push(O.seedRecord(ch));
+    else if (isNewSnapshot) records.push(O.reseedRecord(existing, ch));
+    else records.push(existing);
+  }
+
+  // Chapters that vanished from the snapshot: keep anything with unexported
+  // work (losing it silently would be worse), drop the rest.
+  const live = new Set(chapters.map((c) => c.path));
+  const orphanDrops = [];
+  for (const [path, rec] of stored) {
+    if (live.has(path)) continue;
+    if (O.isChanged(rec)) records.push(rec);
+    else orphanDrops.push(path);
+  }
+
+  await S.saveRecords(records);
+  if (orphanDrops.length) await S.deleteRecords(orphanDrops);
+  if (isNewSnapshot) await S.setSnapshotKey(state.lastUpdate);
+
+  state.overlay = new Map(records.map((r) => [r.path, r]));
+}
+
+async function loadFromFolder(handle, { silent = false } = {}) {
+  const snap = await S.readSnapshot(handle);
+  state.dirHandle = handle;
+  state.folderName = handle.name || '';
+  state.writable = true;
+  await loadFromBytes(snap.bytes);
+  if (!silent) toast(`Loaded ${state.chapters.size} chapters`);
+}
+
+/* -------------------------------------------------------------------- search */
+
+function recordFor(path) {
+  return state.overlay.get(path) || null;
+}
+
+function passesFilter(rec) {
+  if (state.filter === 'all') return true;
+  if (!rec) return false;
+  if (state.filter === 'flagged') return rec.curFlagged;
+  if (state.filter === 'noted') return (rec.baseNotes.length + rec.notesAdded.length) > 0;
+  if (state.filter === 'changed') return O.isChanged(rec);
+  return true;
+}
+
+function currentResults() {
+  if (state.query.trim()) {
+    return DB.search(state.db, state.query, { limit: 200 })
+      .filter((hit) => passesFilter(recordFor(hit.path)));
+  }
+  return [...state.chapters.values()]
+    .filter((ch) => passesFilter(recordFor(ch.path)))
+    .map((ch) => ({ path: ch.path, title: ch.title, folder: ch.folder, excerpt: '', titleHit: '' }));
+}
+
+function tagsFor(rec) {
+  if (!rec) return '';
+  const tags = [];
+  if (rec.curFlagged) tags.push('<span class="tag tag-flag">flagged</span>');
+  const noteCount = rec.baseNotes.length + rec.notesAdded.length;
+  if (noteCount) tags.push(`<span class="tag tag-note">${noteCount} note${noteCount > 1 ? 's' : ''}</span>`);
+  if (O.isChanged(rec)) tags.push('<span class="tag tag-unsent">unexported</span>');
+  return tags.length ? `<div class="result-marks">${tags.join('')}</div>` : '';
+}
+
+function renderResults() {
+  const results = currentResults();
+  const host = $('results');
+
+  if (!results.length) {
+    host.innerHTML = `<div class="empty">${
+      state.query.trim()
+        ? `Nothing matches “${escapeHtml(state.query)}”.`
+        : 'No chapters match this filter.'
+    }</div>`;
     return;
   }
 
-  // Group by category preserving category order
-  const grouped = {};
-  filtered.forEach(({ rule }) => {
-    if (!grouped[rule.category]) grouped[rule.category] = [];
-    grouped[rule.category].push(rule);
-  });
-
-  const catOrder = KILL_TEAM_DATA.categories.map(c => c.id);
-  let html = '';
-  catOrder.forEach(catId => {
-    if (!grouped[catId]) return;
-    const cat = KILL_TEAM_DATA.categories.find(c => c.id === catId);
-    html += `<div class="cat-header">${escHtml(cat.label)}</div>`;
-    grouped[catId].forEach(rule => {
-      const vers = sortedVersions(rule.versions, fromYear, toYear);
-      html += renderRuleCard(rule, vers);
-    });
-  });
-
-  container.innerHTML = html;
-
-  container.querySelectorAll('.rule-header').forEach(header => {
-    header.addEventListener('click', () => {
-      header.closest('.rule-card').classList.toggle('open');
-    });
-  });
-}
-
-// Returns array of { rule, versions } where versions is already filtered + sorted.
-function filterRules() {
-  return KILL_TEAM_DATA.rules
-    .map(rule => {
-      const vers = sortedVersions(rule.versions, fromYear, toYear);
-      return { rule, vers };
-    })
-    .filter(({ rule, vers }) => {
-      if (vers.length === 0) return false;
-      if (activeCategory !== 'all' && rule.category !== activeCategory) return false;
-      if (!searchQuery) return true;
-      const corpus = [
-        rule.keyword,
-        ...(rule.tags || []),
-        ...vers.map(v => v.text || ''),
-        ...vers.map(v => v.source || ''),
-      ].join(' ').toLowerCase();
-      return corpus.includes(searchQuery);
-    });
-}
-
-function renderRuleCard(rule, versions) {
-  // Header badges: up to 3 version dates shown
-  const shownBadges = versions.slice(0, 3).map(v =>
-    `<span class="ver-badge">${escHtml(formatDate(v.date))}</span>`
-  ).join('');
-  const moreBadge = versions.length > 3
-    ? `<span class="ver-badge ver-badge-more">+${versions.length - 3}</span>` : '';
-
-  const bodySections = versions.map((v, i) => {
-    const isNewest = i === 0;
-    return `<div class="ver-section${isNewest ? ' ver-newest' : ''}">
-      <div class="ver-section-head">
-        <span class="ver-date-pill${isNewest ? ' newest' : ''}">${escHtml(formatDate(v.date))}</span>
-        <span class="ver-source">${escHtml(v.source || '')}</span>
+  host.innerHTML = results.map((hit) => {
+    const rec = recordFor(hit.path);
+    const title = hit.titleHit ? highlight(hit.titleHit) : escapeHtml(hit.title);
+    const excerpt = hit.excerpt
+      ? `<div class="result-excerpt">${highlight(hit.excerpt)}</div>`
+      : '';
+    return `<button class="result" data-path="${escapeHtml(hit.path)}">
+      <div class="result-head">
+        <span class="result-title">${title}</span>
+        <span class="result-folder">${escapeHtml(hit.folder)}</span>
       </div>
-      <div class="rule-text">${formatRuleText(v.text || '')}</div>
+      ${excerpt}${tagsFor(rec)}
+    </button>`;
+  }).join('');
+}
+
+/* ------------------------------------------------------------------- chapter */
+
+/**
+ * Rulebook Markdown is the user's own content, but it is still file data we
+ * didn't write — strip anything executable rather than trusting it.
+ */
+function renderMarkdown(md) {
+  const html = marked.parse(md || '', { async: false, breaks: false, gfm: true });
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  for (const bad of doc.body.querySelectorAll('script, style, iframe, object, embed, form, link, meta')) {
+    bad.remove();
+  }
+  for (const el of doc.body.querySelectorAll('*')) {
+    for (const attr of [...el.attributes]) {
+      const name = attr.name.toLowerCase();
+      const value = attr.value.trim().toLowerCase();
+      if (name.startsWith('on')) el.removeAttribute(attr.name);
+      else if ((name === 'href' || name === 'src') && value.startsWith('javascript:')) {
+        el.removeAttribute(attr.name);
+      }
+    }
+  }
+  for (const a of doc.body.querySelectorAll('a[href]')) {
+    a.setAttribute('target', '_blank');
+    a.setAttribute('rel', 'noopener noreferrer');
+  }
+  return doc.body.innerHTML;
+}
+
+function openChapter(path) {
+  const ch = state.chapters.get(path);
+  if (!ch) { toast('That chapter is not in this snapshot', true); return; }
+  state.currentPath = path;
+
+  $('ch-title').textContent = ch.title;
+  $('ch-folder').textContent = ch.folder || path;
+  $('ch-body').innerHTML = renderMarkdown(DB.readChapterContent(state.db, path));
+
+  const rec = recordFor(path);
+  $('ch-flag').checked = !!(rec && rec.curFlagged);
+  $('ch-reason').value = rec ? rec.curReason : '';
+  $('ch-note-new').value = '';
+  renderNotes();
+  show('chapter');
+  document.querySelector('#screen-chapter .scroll').scrollTop = 0;
+}
+
+function renderNotes() {
+  const rec = recordFor(state.currentPath);
+  const host = $('ch-notes');
+  if (!rec) { host.innerHTML = ''; return; }
+  const notes = O.allNotes(rec);
+  if (!notes.length) { host.innerHTML = ''; return; }
+
+  let localIndex = -1;
+  host.innerHTML = notes.map((n) => {
+    if (n.local) localIndex++;
+    const del = n.local
+      ? `<button class="note-del" data-local="${localIndex}" aria-label="Delete note">✕</button>`
+      : '';
+    return `<div class="note${n.local ? ' note-local' : ''}">
+      <span class="note-text">${escapeHtml(n.text)}</span>${del}
     </div>`;
   }).join('');
-
-  return `<div class="rule-card" data-id="${escHtml(rule.id)}">
-    <div class="rule-header">
-      <span class="rule-keyword">${escHtml(rule.keyword)}</span>
-      <span class="rule-badges">${shownBadges}${moreBadge}</span>
-      <span class="expand-arrow">▼</span>
-    </div>
-    <div class="rule-body">${bodySections}</div>
-  </div>`;
 }
 
-function formatRuleText(text) {
-  return escHtml(text).replace(/⚠/g, '<span class="warn-marker">⚠</span>');
+async function mutate(path, fn) {
+  const rec = recordFor(path);
+  if (!rec) return;
+  const next = fn(rec);
+  state.overlay.set(path, next);
+  await S.saveRecord(next);
+  updateChangeIndicators();
 }
 
-// ── COMPARE TAB ───────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------ settings */
 
-function bindCompareSearch() {
-  const input = document.getElementById('compare-search');
-  input.addEventListener('input', () => {
-    compareQuery = input.value.trim().toLowerCase();
-    buildCompareSuggestions();
-  });
+function changedRecords() {
+  return [...state.overlay.values()].filter(O.isChanged);
 }
 
-function buildCompareSuggestions() {
-  const suggestEl = document.getElementById('compare-suggestions');
-  const viewEl = document.getElementById('compare-view');
+function updateChangeIndicators() {
+  const changed = changedRecords();
+  const badge = $('nav-badge');
+  badge.textContent = String(changed.length);
+  badge.classList.toggle('hidden', changed.length === 0);
 
-  if (!compareQuery) {
-    suggestEl.innerHTML = '';
-    viewEl.innerHTML = '<p class="compare-hint">Search for a rule above to see its full version history.</p>';
-    return;
-  }
+  const summary = $('export-summary');
+  summary.classList.toggle('has-changes', changed.length > 0);
+  summary.textContent = changed.length === 0
+    ? 'No local changes since this snapshot was loaded.'
+    : `${changed.length} chapter${changed.length > 1 ? 's' : ''} changed since this snapshot was loaded.`;
 
-  const matches = KILL_TEAM_DATA.rules.filter(rule => {
-    const corpus = [rule.keyword, ...(rule.tags || [])].join(' ').toLowerCase();
-    return corpus.includes(compareQuery);
-  });
-
-  compareResults = matches;
-  compareIndex = 0;
-
-  if (!matches.length) {
-    suggestEl.innerHTML = '';
-    viewEl.innerHTML = '<p class="compare-hint">No rules found. Try a different keyword.</p>';
-    return;
-  }
-
-  if (matches.length === 1) {
-    suggestEl.innerHTML = '';
-    renderCompareView(matches[0]);
-    return;
-  }
-
-  suggestEl.innerHTML = matches.slice(0, 8).map((rule, i) =>
-    `<div class="suggestion-item" data-i="${i}">${escHtml(rule.keyword)}</div>`
-  ).join('');
-
-  suggestEl.querySelectorAll('.suggestion-item').forEach(item => {
-    item.addEventListener('click', () => {
-      compareIndex = parseInt(item.dataset.i);
-      suggestEl.innerHTML = '';
-      renderCompareView(compareResults[compareIndex]);
-    });
-  });
-
-  viewEl.innerHTML = '';
+  const host = $('changed-list');
+  host.innerHTML = changed.length === 0
+    ? '<p class="hint" style="margin:0">Nothing pending.</p>'
+    : changed.map((rec) => {
+      const ch = state.chapters.get(rec.path);
+      const what = [];
+      if (rec.curFlagged !== rec.baseFlagged) what.push(rec.curFlagged ? 'flagged' : 'unflagged');
+      if (rec.curReason !== rec.baseReason) what.push('reason changed');
+      if (rec.notesAdded.length) what.push(`${rec.notesAdded.length} new note${rec.notesAdded.length > 1 ? 's' : ''}`);
+      return `<button class="changed-item" data-path="${escapeHtml(rec.path)}">
+        <div class="changed-title">${escapeHtml(ch ? ch.title : rec.path)}</div>
+        <div class="changed-what">${escapeHtml(what.join(' · '))}</div>
+      </button>`;
+    }).join('');
 }
 
-function renderCompareView(rule) {
-  const viewEl = document.getElementById('compare-view');
-  const versions = sortedVersions(rule.versions); // no date filter in compare — show full history
+function renderSettings() {
+  $('device-input').value = state.device;
+  $('device-file').textContent = O.exportFilename(state.device);
+  $('export-name').textContent = O.exportFilename(state.device);
 
-  const blocks = versions.map((v, i) => {
-    const isNewest = i === 0;
-    return `<div class="compare-ver-block${isNewest ? ' compare-newest' : ''}">
-      <div class="compare-ver-head">
-        <span class="ver-date-pill${isNewest ? ' newest' : ''}">${escHtml(formatDate(v.date))}</span>
-        <span class="ver-source">${escHtml(v.source || '')}</span>
-        ${isNewest ? '<span class="newest-label">Latest</span>' : ''}
-      </div>
-      <div class="compare-ver-text">${formatRuleText(v.text || '')}</div>
-    </div>`;
-  }).join('');
-
-  const prevDisabled = compareIndex <= 0 ? 'disabled' : '';
-  const nextDisabled = compareIndex >= compareResults.length - 1 ? 'disabled' : '';
-  const navHtml = compareResults.length > 1 ? `<div class="compare-nav-row">
-    <button class="compare-nav-btn" id="compare-prev" ${prevDisabled}>◀ Prev</button>
-    <button class="compare-nav-btn" id="compare-next" ${nextDisabled}>Next ▶</button>
-  </div>` : '';
-
-  viewEl.innerHTML = `<div class="compare-rule-header">${escHtml(rule.keyword)}</div>
-    <div class="compare-ver-count">${versions.length} version${versions.length !== 1 ? 's' : ''} — newest first</div>
-    ${blocks}${navHtml}`;
-
-  const prevBtn = viewEl.querySelector('#compare-prev');
-  const nextBtn = viewEl.querySelector('#compare-next');
-  if (prevBtn) prevBtn.addEventListener('click', () => navigateCompare(-1));
-  if (nextBtn) nextBtn.addEventListener('click', () => navigateCompare(1));
+  const unix = state.lastUpdate == null ? null : Number(state.lastUpdate);
+  $('snap-when').textContent = formatWhen(unix);
+  $('snap-age').textContent = relativeAge(unix);
+  $('snap-count').textContent = String(state.chapters.size);
+  $('snap-folder').textContent = state.folderName || (state.writable ? '—' : 'not open (cached copy)');
+  updateChangeIndicators();
 }
 
-function navigateCompare(delta) {
-  compareIndex = Math.max(0, Math.min(compareResults.length - 1, compareIndex + delta));
-  renderCompareView(compareResults[compareIndex]);
-}
+async function doExport() {
+  const status = $('export-status');
+  status.className = 'setup-status';
+  status.textContent = '';
 
-// ── TRACKER ────────────────────────────────────────────────────────────────────
-
-function loadTracker() {
   try {
-    const raw = localStorage.getItem(TRACKER_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return defaultTracker();
+    let handle = state.dirHandle || await S.getSavedDirectory();
+    if (!handle) {
+      handle = await S.pickDirectory();
+    }
+    // This runs inside the button's click handler, so the permission prompt
+    // has the user gesture it needs.
+    const granted = await S.ensurePermission(handle, true);
+    if (!granted) throw new Error('Permission to write to that folder was declined.');
+    state.dirHandle = handle;
+    state.folderName = handle.name || '';
+    state.writable = true;
+
+    const payload = O.buildExport({
+      device: state.device,
+      lastUpdate: state.lastUpdate,
+      records: [...state.overlay.values()],
+    });
+    const name = O.exportFilename(state.device);
+    await S.writeExport(handle, name, JSON.stringify(payload, null, 2));
+
+    status.classList.add('good');
+    status.textContent = `Wrote ${name} — ${payload.entries.length} entr${payload.entries.length === 1 ? 'y' : 'ies'}.`;
+    toast('Annotations exported');
+    renderSettings();
+  } catch (err) {
+    if (err && err.name === 'AbortError') return; // user closed the picker
+    status.classList.add('err');
+    status.textContent = err.message || String(err);
+    toast('Export failed', true);
+  }
 }
 
-function defaultTracker() {
-  return {
-    tp: 1,
-    players: [
-      { name: 'Player 1', cp: 0, killOps: 0, critOps: 0, tacOps: 0 },
-      { name: 'Player 2', cp: 0, killOps: 0, critOps: 0, tacOps: 0 },
-    ]
-  };
+/* ---------------------------------------------------------------------- boot */
+
+function showCapabilities() {
+  const caps = S.capabilityReport();
+  $('cap-table').innerHTML = Object.entries(caps).map(([k, v]) =>
+    `<tr><td>${escapeHtml(k)}</td><td class="${v === 'yes' ? 'cap-yes' : 'cap-no'}">${v}</td></tr>`,
+  ).join('');
+  $('setup-body').classList.add('hidden');
+  $('setup-unsupported').classList.remove('hidden');
 }
 
-function saveTracker() {
-  try { localStorage.setItem(TRACKER_KEY, JSON.stringify(tracker)); } catch {}
+function setSetupStatus(msg, kind = '') {
+  const el = $('setup-status');
+  el.className = 'setup-status' + (kind ? ' ' + kind : '');
+  el.textContent = msg;
 }
 
-function bindTracker() {
-  document.getElementById('tp-prev').addEventListener('click', () => {
-    if (tracker.tp > 1) { tracker.tp--; saveTracker(); renderTracker(); }
+async function enterApp() {
+  renderResults();
+  renderSettings();
+  show('search');
+}
+
+async function boot() {
+  wireEvents();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline install is best-effort */ });
+  }
+
+  if (!S.supportsFileSystemAccess()) { showCapabilities(); return; }
+
+  state.device = (await S.getDevice()) || 'phone';
+
+  const saved = await S.getSavedDirectory();
+  if (saved) $('btn-reopen').classList.remove('hidden');
+
+  // Already-granted folder: go straight in.
+  if (saved && await S.ensurePermission(saved, false)) {
+    try {
+      await loadFromFolder(saved, { silent: true });
+      await enterApp();
+      return;
+    } catch (err) {
+      setSetupStatus(err.message || String(err), 'err');
+    }
+  }
+
+  // Otherwise fall back to the cached snapshot so the app is usable offline
+  // with no folder access; exporting will ask for permission when needed.
+  try {
+    const cached = await S.getCachedSnapshot();
+    if (cached) {
+      await loadFromBytes(cached.bytes, { cache: false });
+      state.writable = false;
+      await enterApp();
+      toast('Offline copy — reopen the folder to export');
+      return;
+    }
+  } catch (err) {
+    console.warn('Cached snapshot unusable:', err);
+  }
+
+  show('setup');
+}
+
+function wireEvents() {
+  $('btn-pick').addEventListener('click', async () => {
+    setSetupStatus('');
+    try {
+      const handle = await S.pickDirectory();
+      await loadFromFolder(handle);
+      await enterApp();
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+      setSetupStatus(err.message || String(err), 'err');
+    }
   });
-  document.getElementById('tp-next').addEventListener('click', () => {
-    if (tracker.tp < 4) { tracker.tp++; saveTracker(); renderTracker(); }
+
+  $('btn-reopen').addEventListener('click', async () => {
+    setSetupStatus('');
+    try {
+      const handle = await S.getSavedDirectory();
+      if (!handle) { setSetupStatus('No saved folder — choose one.', 'err'); return; }
+      if (!await S.ensurePermission(handle, true)) {
+        setSetupStatus('Permission declined.', 'err');
+        return;
+      }
+      await loadFromFolder(handle);
+      await enterApp();
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+      setSetupStatus(err.message || String(err), 'err');
+    }
   });
-  document.getElementById('reset-game').addEventListener('click', () => {
-    if (confirm('Reset the game? All counters will be cleared.')) {
-      const names = tracker.players.map(p => p.name);
-      tracker = defaultTracker();
-      tracker.players.forEach((p, i) => { p.name = names[i]; });
-      saveTracker();
-      renderTracker();
+
+  const runSearch = debounce(() => { renderResults(); }, 120);
+  $('q').addEventListener('input', (e) => { state.query = e.target.value; runSearch(); });
+  $('q-clear').addEventListener('click', () => {
+    state.query = ''; $('q').value = ''; renderResults(); $('q').focus();
+  });
+
+  for (const pill of document.querySelectorAll('.pill')) {
+    pill.addEventListener('click', () => {
+      state.filter = pill.dataset.filter;
+      for (const p of document.querySelectorAll('.pill')) p.classList.toggle('pill-on', p === pill);
+      renderResults();
+    });
+  }
+
+  $('results').addEventListener('click', (e) => {
+    const btn = e.target.closest('.result');
+    if (btn) openChapter(btn.dataset.path);
+  });
+
+  $('changed-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('.changed-item');
+    if (btn) openChapter(btn.dataset.path);
+  });
+
+  $('btn-back').addEventListener('click', () => { renderResults(); show('search'); });
+
+  $('ch-flag').addEventListener('change', async (e) => {
+    await mutate(state.currentPath, (rec) => O.setFlag(rec, e.target.checked));
+  });
+
+  const saveReason = debounce(async (value) => {
+    await mutate(state.currentPath, (rec) => O.setReason(rec, value));
+  }, 300);
+  $('ch-reason').addEventListener('input', (e) => saveReason(e.target.value));
+
+  $('btn-add-note').addEventListener('click', async () => {
+    const box = $('ch-note-new');
+    const text = box.value.trim();
+    if (!text) return;
+    await mutate(state.currentPath, (rec) => O.addNote(rec, text));
+    box.value = '';
+    renderNotes();
+    toast('Note added');
+  });
+
+  $('ch-notes').addEventListener('click', async (e) => {
+    const btn = e.target.closest('.note-del');
+    if (!btn) return;
+    await mutate(state.currentPath, (rec) => O.removeLocalNote(rec, Number(btn.dataset.local)));
+    renderNotes();
+  });
+
+  for (const btn of document.querySelectorAll('.nav-btn')) {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.go;
+      if (target === 'settings') renderSettings();
+      if (target === 'search') renderResults();
+      show(target);
+    });
+  }
+
+  $('btn-save-device').addEventListener('click', async () => {
+    const name = $('device-input').value.trim() || 'phone';
+    state.device = name;
+    await S.setDevice(name);
+    renderSettings();
+    toast('Device name saved');
+  });
+
+  $('btn-export').addEventListener('click', doExport);
+
+  $('btn-reload').addEventListener('click', async () => {
+    try {
+      // May be running from the cached snapshot with no folder access — in
+      // that case ask for the folder rather than dead-ending.
+      let handle = state.dirHandle || await S.getSavedDirectory() || await S.pickDirectory();
+      if (!await S.ensurePermission(handle, true)) { toast('Permission declined', true); return; }
+      await loadFromFolder(handle);
+      renderResults();
+      renderSettings();
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+      toast(err.message || String(err), true);
     }
   });
 }
 
-function renderTracker() {
-  document.getElementById('tp-current').textContent = tracker.tp;
-  document.getElementById('tp-prev').disabled = tracker.tp <= 1;
-  document.getElementById('tp-next').disabled = tracker.tp >= 4;
-
-  tracker.players.forEach((player, pi) => {
-    const col = document.getElementById(`player-col-${pi}`);
-    const nameEl = col.querySelector('.player-name');
-    if (nameEl.contentEditable !== 'true') nameEl.textContent = player.name;
-
-    ['cp', 'killOps', 'critOps', 'tacOps'].forEach(stat => {
-      col.querySelector(`.cnt-value[data-stat="${stat}"]`).textContent = player[stat];
-    });
-
-    col.querySelector('.counter-vp-val').textContent =
-      player.killOps + player.critOps + player.tacOps;
-  });
-}
-
-function adjustStat(pi, stat, delta) {
-  tracker.players[pi][stat] = Math.max(0, tracker.players[pi][stat] + delta);
-  saveTracker();
-  renderTracker();
-}
-
-function enableNameEdit(pi) {
-  const col = document.getElementById(`player-col-${pi}`);
-  const nameEl = col.querySelector('.player-name');
-  nameEl.contentEditable = 'true';
-  nameEl.focus();
-  const range = document.createRange();
-  range.selectNodeContents(nameEl);
-  window.getSelection().removeAllRanges();
-  window.getSelection().addRange(range);
-
-  const finish = () => {
-    nameEl.contentEditable = 'false';
-    const newName = nameEl.textContent.trim() || `Player ${pi + 1}`;
-    nameEl.textContent = newName;
-    tracker.players[pi].name = newName;
-    saveTracker();
-    renderTracker();
-  };
-  nameEl.addEventListener('blur', finish, { once: true });
-  nameEl.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); }
-  }, { once: true });
-}
-
-// ── UTILS ─────────────────────────────────────────────────────────────────────
-
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+boot().catch((err) => {
+  console.error(err);
+  setSetupStatus(err.message || String(err), 'err');
+  show('setup');
+});
