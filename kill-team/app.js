@@ -162,6 +162,32 @@ async function syncOverlay(chapters) {
   state.overlay = new Map(records.map((r) => [r.path, r]));
 }
 
+/**
+ * Drop everything derived from the current snapshot and return to the setup
+ * screen. The annotation overlay is untouched — it outlives any one snapshot,
+ * which is the whole point of keying it by chapter path.
+ */
+function resetSource() {
+  if (state.db) { try { state.db.close(); } catch { /* already gone */ } }
+  state.db = null;
+  state.lastUpdate = null;
+  state.chapters = new Map();
+  state.order = [];
+  state.orderIndex = new Map();
+  state.linkIndex = null;
+  state.navStack = [];
+  state.currentPath = null;
+  state.dirHandle = null;
+  state.folderName = '';
+  state.writable = false;
+  state.query = '';
+  $('q').value = '';
+  $('results').innerHTML = '';
+  $('btn-reopen').classList.add('hidden');
+  setSetupStatus('Folder forgotten. Choose a folder to load a snapshot.');
+  show('setup');
+}
+
 async function loadFromFolder(handle, { silent = false } = {}) {
   const snap = await S.readSnapshot(handle);
   state.dirHandle = handle;
@@ -734,6 +760,37 @@ function wireEvents() {
   });
 
   $('btn-export').addEventListener('click', doExport);
+
+  // Point the app at a different folder — a moved sync root, a second vault,
+  // or just recovering when the remembered folder is the wrong one. Always
+  // shows the picker, unlike Re-read which reuses what's already remembered.
+  $('btn-change-folder').addEventListener('click', async () => {
+    try {
+      const handle = await S.pickDirectory();
+      await loadFromFolder(handle);
+      renderResults();
+      renderSettings();
+      toast(`Now reading from ${handle.name || 'the chosen folder'}`);
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+      toast(err.message || String(err), true);
+    }
+  });
+
+  $('btn-forget-folder').addEventListener('click', async () => {
+    const pending = changedRecords().length;
+    const warning = pending
+      ? `\n\nYour ${pending} unexported chapter${pending > 1 ? 's stay' : ' stays'} saved on this device.`
+      : '';
+    if (!confirm(
+      'Forget the synced folder and its offline copy?\n\n' +
+      'You will need to choose a folder again before you can search or export.' + warning,
+    )) return;
+
+    await S.forgetDirectory();
+    resetSource();
+    toast('Folder forgotten');
+  });
 
   $('btn-reload').addEventListener('click', async () => {
     try {

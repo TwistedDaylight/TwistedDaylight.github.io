@@ -104,6 +104,8 @@ body {
 .btn-ghost { background: transparent; }
 .btn-lg { display: block; width: 100%; margin-bottom: 0.6rem; }
 .btn-small { padding: 0.5rem 0.85rem; font-size: 0.85rem; min-height: 40px; }
+.btn-danger { border-color: var(--red); color: var(--red-bright); background: var(--red-dim); }
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 
 .icon-btn {
   font: inherit; font-size: 1.7rem; line-height: 1;
@@ -302,6 +304,7 @@ body {
 }
 .card h2 { font-size: 0.95rem; margin-bottom: 0.45rem; }
 .hint { font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; margin-bottom: 0.7rem; }
+.hint-tight { margin: 0.7rem 0 0; }
 .device-row { display: flex; gap: 0.5rem; align-items: stretch; }
 .device-row .text-input { flex: 1; min-width: 0; }
 

@@ -48,6 +48,7 @@ function tx(store, mode, fn) {
 
 export const kvGet = (key) => tx(STORE_KV, 'readonly', (s) => s.get(key));
 export const kvSet = (key, value) => tx(STORE_KV, 'readwrite', (s) => s.put(value, key));
+export const kvDelete = (key) => tx(STORE_KV, 'readwrite', (s) => s.delete(key));
 
 /** The whole overlay, as a Map keyed by chapter path. */
 export async function loadOverlay() {
@@ -144,6 +145,17 @@ export async function pickDirectory() {
 }
 
 export const getSavedDirectory = () => kvGet('dirHandle');
+
+/**
+ * Forget which folder the snapshot came from, and the offline copy taken from
+ * it. Annotations are deliberately left alone: they live in their own store,
+ * keyed by chapter path, so pointing the app at a re-synced or moved folder
+ * doesn't cost you unexported work.
+ */
+export async function forgetDirectory() {
+  await kvDelete('dirHandle');
+  await kvDelete('snapshot');
+}
 
 /**
  * Check, and only if needed request, read-write permission on a stored handle.

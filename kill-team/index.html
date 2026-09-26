@@ -129,7 +129,15 @@
         <dt>Chapters</dt><dd id="snap-count">—</dd>
         <dt>Folder</dt><dd id="snap-folder" class="mono">—</dd>
       </dl>
-      <button id="btn-reload" class="btn btn-small">Re-read snapshot</button>
+      <div class="btn-row">
+        <button id="btn-reload" class="btn btn-small">Re-read snapshot</button>
+        <button id="btn-change-folder" class="btn btn-small">Change folder…</button>
+        <button id="btn-forget-folder" class="btn btn-small btn-danger">Forget folder</button>
+      </div>
+      <p class="hint hint-tight">
+        Changing the folder re-reads the snapshot from somewhere else. Forgetting it also
+        drops the offline copy. Your annotations are kept either way.
+      </p>
     </section>
 
     <section class="card">
