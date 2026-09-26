@@ -24,6 +24,7 @@
   --warn-dim:     rgba(204,136,0,0.15);
 
   --nav-h:        56px;
+  --pager-h:      56px;
   --safe-b:       env(safe-area-inset-bottom, 0px);
   --radius:       10px;
   --radius-sm:    6px;
@@ -177,9 +178,57 @@ body {
 
 .empty { padding: 2.5rem 1.25rem; text-align: center; color: var(--text-dim); font-size: 0.88rem; line-height: 1.6; }
 
+/* ── WIKILINKS ────────────────────────────────────────────────────── */
+
+.wikilink {
+  color: var(--gold);
+  border-bottom: 1px solid var(--gold-border);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.wikilink:active { background: var(--gold-dim); }
+.wikilink-missing {
+  color: var(--text-dim);
+  border-bottom: 1px dashed var(--text-dim);
+}
+.wikilink-embed { margin-right: 0.15em; opacity: 0.7; font-size: 0.9em; }
+
 /* ── ANNOTATE ─────────────────────────────────────────────────────── */
 
-.annotate { padding: 0.9rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+.annotate-btn {
+  font: inherit; font-size: 0.78rem; cursor: pointer;
+  margin-left: auto; flex: 0 0 auto; position: relative;
+  display: flex; align-items: center; gap: 0.25rem;
+  padding: 0.45rem 0.7rem; min-height: 40px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  background: var(--surface2); color: var(--text-muted);
+}
+.annotate-btn:active { background: var(--surface3); }
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--warn); display: inline-block;
+}
+
+.annotate {
+  margin: 0 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.annotate-summary {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  padding: 0.8rem 0.9rem; min-height: 48px;
+  cursor: pointer; list-style: none;
+  font-size: 0.9rem; font-weight: 600;
+}
+.annotate-summary::-webkit-details-marker { display: none; }
+.annotate-caret { color: var(--text-dim); transition: transform 0.15s; font-size: 0.8rem; }
+.annotate[open] .annotate-caret { transform: rotate(90deg); }
+.annotate-heading { color: var(--text-muted); }
+.annotate-tags { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-left: auto; }
+.annotate-body { padding: 0 0.9rem 0.9rem; border-top: 1px solid var(--border); padding-top: 0.8rem; }
 
 .flag-row { display: flex; align-items: center; gap: 0.6rem; min-height: 44px; cursor: pointer; }
 .flag-row input { width: 20px; height: 20px; accent-color: var(--red-bright); }
@@ -273,6 +322,35 @@ body {
 .changed-title { font-size: 0.85rem; font-weight: 600; }
 .changed-what { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.15rem; }
 
+/* ── CHAPTER PAGER ────────────────────────────────────────────────── */
+
+.chapter-nav {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  padding-bottom: calc(0.5rem + var(--nav-h) + var(--safe-b));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.page-btn {
+  font: inherit; font-size: 0.85rem; cursor: pointer;
+  padding: 0.5rem 0.9rem; min-height: 40px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  background: var(--surface2); color: var(--text);
+}
+.page-btn:active:not([disabled]) { background: var(--surface3); }
+.page-btn[disabled] { opacity: 0.35; cursor: default; }
+.page-pos {
+  flex: 1; text-align: center;
+  font-size: 0.78rem; color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The pager sits above the fixed nav, so the scroll area no longer needs to
+   reserve room for it. */
+#screen-chapter .scroll { padding-bottom: 1rem; }
+
 /* ── NAV ──────────────────────────────────────────────────────────── */
 
 .nav {
@@ -309,6 +387,12 @@ body {
 }
 .toast.show { opacity: 1; }
 .toast.err { border-color: var(--red); color: var(--red-bright); }
+
+/* The chapter screen has the pager between the content and the nav bar, so
+   the toast has to clear both or it covers the position readout. */
+#screen-chapter.active ~ .toast {
+  bottom: calc(var(--nav-h) + var(--safe-b) + var(--pager-h) + 0.75rem);
+}
 
 @media (min-width: 720px) {
   .scroll { padding-left: max(0px, calc((100% - 46rem) / 2)); padding-right: max(0px, calc((100% - 46rem) / 2)); }

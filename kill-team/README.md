@@ -13,13 +13,32 @@ transport, and the app just reads and writes files in it.
 |---|---|
 | `db.js` | Deserializes the snapshot into WASM SQLite; FTS5 search, sanitized `MATCH` queries |
 | `overlay.js` | Pure annotation logic — seed/re-seed and the export diff |
+| `links.js` | Pure wikilink parsing and resolution against the chapter paths |
 | `store.js` | IndexedDB (overlay, settings, snapshot byte cache) + File System Access |
 | `app.js` | UI and wiring |
 
-`overlay.js` is deliberately free of IndexedDB and DOM so its rules can be
-tested directly. Those rules are the fiddly part: see the comments on
-`reseedRecord` for why a field the user never touched must adopt the PC's new
+`overlay.js` and `links.js` are deliberately free of IndexedDB and DOM so their
+rules can be tested directly. Those rules are the fiddly part: see the comments
+on `reseedRecord` for why a field the user never touched must adopt the PC's new
 value, and why absorbed notes have to drop out of `notesAdded`.
+
+## Wikilinks
+
+Chapter Markdown cross-references other chapters Obsidian-style: `[[target]]`,
+`[[target|label]]`, `[[target#heading]]`, `![[embed]]`. These are handled by a
+`marked` **inline extension** in `app.js`, not by a regex pass over the source —
+the extension runs inside marked's tokenizer, so `[[...]]` inside code spans and
+fenced blocks is correctly left alone.
+
+A link target is written as it reads in the vault, which need not match the
+indexed `files.path`, so `resolveLink` tries exact path → path + `.md` →
+case-insensitive → path suffix → bare filename. Ambiguous matches (several
+`Overview.md`) resolve to the one nearest the linking chapter, then the
+shallowest, then alphabetically — always deterministically. Targets that resolve
+to nothing render dimmed and run a search when tapped.
+
+Embeds render as links rather than inlining the target: annotation granularity
+is whole-chapter, and inlining would risk recursion.
 
 ## Vendored dependencies
 

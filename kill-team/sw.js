@@ -9,7 +9,7 @@
  * Bump CACHE on every deploy so clients pick up new assets.
  */
 
-const CACHE = 'kt-rules-v1';
+const CACHE = 'kt-rules-v2';
 
 const ASSETS = [
   './',
@@ -19,6 +19,7 @@ const ASSETS = [
   './db.js',
   './store.js',
   './overlay.js',
+  './links.js',
   './manifest.json',
   './icon.svg',
   './vendor/sqlite3.js',

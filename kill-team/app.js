@@ -9,7 +9,8 @@
 import * as DB from './db.js';
 import * as S from './store.js';
 import * as O from './overlay.js';
-import { marked } from './vendor/marked.js';
+import * as L from './links.js';
+import { Marked } from './vendor/marked.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -26,6 +27,10 @@ const state = {
   query: '',
   currentPath: null,
   writable: false,       // folder permission currently granted
+  order: [],             // chapter paths in path order, for prev/next
+  orderIndex: new Map(), // path -> position in `order`
+  linkIndex: null,       // wikilink lookup, rebuilt per snapshot
+  navStack: [],          // chapters walked into via wikilinks
 };
 
 /* ------------------------------------------------------------------ helpers */
@@ -103,6 +108,13 @@ async function loadFromBytes(bytes, { cache = true } = {}) {
 
   const chapters = DB.readAllChapters(state.db);
   state.chapters = new Map(chapters.map((c) => [c.path, c]));
+
+  // readAllChapters orders by path, so insertion order is the paging order.
+  state.order = chapters.map((c) => c.path);
+  state.orderIndex = new Map(state.order.map((p, i) => [p, i]));
+  state.linkIndex = L.buildLinkIndex(state.order);
+  state.navStack = [];
+
   await syncOverlay(chapters);
 
   if (cache) {
@@ -184,14 +196,20 @@ function currentResults() {
     .map((ch) => ({ path: ch.path, title: ch.title, folder: ch.folder, excerpt: '', titleHit: '' }));
 }
 
-function tagsFor(rec) {
+/** The flagged / N notes / unexported chips, shared by the list and the panel. */
+function chipsFor(rec) {
   if (!rec) return '';
   const tags = [];
   if (rec.curFlagged) tags.push('<span class="tag tag-flag">flagged</span>');
   const noteCount = rec.baseNotes.length + rec.notesAdded.length;
   if (noteCount) tags.push(`<span class="tag tag-note">${noteCount} note${noteCount > 1 ? 's' : ''}</span>`);
   if (O.isChanged(rec)) tags.push('<span class="tag tag-unsent">unexported</span>');
-  return tags.length ? `<div class="result-marks">${tags.join('')}</div>` : '';
+  return tags.join('');
+}
+
+function tagsFor(rec) {
+  const chips = chipsFor(rec);
+  return chips ? `<div class="result-marks">${chips}</div>` : '';
 }
 
 function renderResults() {
@@ -225,12 +243,70 @@ function renderResults() {
 
 /* ------------------------------------------------------------------- chapter */
 
+/*
+ * Wikilinks. The vault cross-references chapters as [[target|label]], which
+ * plain Markdown renders as literal brackets.
+ *
+ * This is a marked inline extension rather than a regex pass over the source,
+ * because the extension runs inside marked's own tokenizer and so leaves
+ * [[...]] inside code spans and fenced blocks alone — a pre-pass would rewrite
+ * those too.
+ *
+ * Resolution needs the chapter currently being rendered (to break ties between
+ * same-named chapters in different folders), which marked can't pass through,
+ * hence the module-level handle.
+ */
+let renderingPath = '';
+
+const md = new Marked({ async: false, breaks: false, gfm: true });
+md.use({
+  extensions: [{
+    name: 'wikilink',
+    level: 'inline',
+    start(src) {
+      const i = src.indexOf('[[');
+      return i < 0 ? undefined : (i > 0 && src[i - 1] === '!' ? i - 1 : i);
+    },
+    tokenizer(src) {
+      const m = /^(!?)\[\[([^\]\n|]+?)(?:\\?\|([^\]\n]*?))?\]\]/.exec(src);
+      if (!m) return undefined;
+      return {
+        type: 'wikilink',
+        raw: m[0],
+        embed: m[1] === '!',
+        target: m[2],
+        label: (m[3] || '').trim(),
+      };
+    },
+    renderer(token) {
+      const { anchor } = L.parseTarget(token.target);
+      const resolved = state.linkIndex
+        ? L.resolveLink(state.linkIndex, token.target, renderingPath)
+        : null;
+      const label = escapeHtml(token.label || L.defaultLabel(token.target));
+      const mark = token.embed ? '<span class="wikilink-embed" aria-hidden="true">⤵</span>' : '';
+
+      if (resolved) {
+        return `<a class="wikilink" data-path="${escapeHtml(resolved)}"` +
+               (anchor ? ` data-anchor="${escapeHtml(anchor)}"` : '') +
+               `>${mark}${label}</a>`;
+      }
+      // Nothing matched — keep it visible and useful by searching for it.
+      const { target } = L.parseTarget(token.target);
+      return `<a class="wikilink wikilink-missing" data-search="${escapeHtml(target || anchor)}" ` +
+             `title="No chapter matches “${escapeHtml(token.target)}” — tap to search">` +
+             `${mark}${label}</a>`;
+    },
+  }],
+});
+
 /**
  * Rulebook Markdown is the user's own content, but it is still file data we
  * didn't write — strip anything executable rather than trusting it.
  */
-function renderMarkdown(md) {
-  const html = marked.parse(md || '', { async: false, breaks: false, gfm: true });
+function renderMarkdown(source, fromPath = '') {
+  renderingPath = fromPath;
+  const html = md.parse(source || '');
   const doc = new DOMParser().parseFromString(html, 'text/html');
   for (const bad of doc.body.querySelectorAll('script, style, iframe, object, embed, form, link, meta')) {
     bad.remove();
@@ -252,22 +328,78 @@ function renderMarkdown(md) {
   return doc.body.innerHTML;
 }
 
-function openChapter(path) {
+/**
+ * @param push   remember where we came from, so Back walks the link trail
+ *               (wikilinks) rather than dropping straight out to the list
+ * @param anchor heading to scroll to, from a [[chapter#heading]] link
+ */
+function openChapter(path, { push = false, anchor = '' } = {}) {
   const ch = state.chapters.get(path);
   if (!ch) { toast('That chapter is not in this snapshot', true); return; }
+
+  if (push && state.currentPath && state.currentPath !== path) {
+    state.navStack.push(state.currentPath);
+  }
   state.currentPath = path;
 
   $('ch-title').textContent = ch.title;
   $('ch-folder').textContent = ch.folder || path;
-  $('ch-body').innerHTML = renderMarkdown(DB.readChapterContent(state.db, path));
+  $('ch-body').innerHTML = renderMarkdown(DB.readChapterContent(state.db, path), path);
 
   const rec = recordFor(path);
   $('ch-flag').checked = !!(rec && rec.curFlagged);
   $('ch-reason').value = rec ? rec.curReason : '';
   $('ch-note-new').value = '';
+  $('annotate').open = false;   // rule text first; annotations on request
   renderNotes();
+  renderAnnotateStatus();
+  renderPager();
   show('chapter');
-  document.querySelector('#screen-chapter .scroll').scrollTop = 0;
+
+  const scroller = document.querySelector('#screen-chapter .scroll');
+  scroller.scrollTop = 0;
+  if (anchor) scrollToHeading(anchor);
+}
+
+/** Jump to the heading a [[chapter#heading]] link named, if we can find it. */
+function scrollToHeading(anchor) {
+  const want = L.normalizeHeading(anchor);
+  if (!want) return;
+  for (const h of $('ch-body').querySelectorAll('h1, h2, h3, h4, h5, h6')) {
+    if (L.normalizeHeading(h.textContent) === want) {
+      h.scrollIntoView({ block: 'start' });
+      return;
+    }
+  }
+}
+
+/* -------------------------------------------------------------- pager */
+
+function renderPager() {
+  const i = state.orderIndex.get(state.currentPath);
+  const total = state.order.length;
+  const known = i !== undefined;
+  $('ch-position').textContent = known ? `${i + 1} of ${total}` : '';
+  $('btn-prev').disabled = !known || i === 0;
+  $('btn-next').disabled = !known || i >= total - 1;
+}
+
+/** Step through the full chapter list in path order, whatever is filtered. */
+function step(delta) {
+  const i = state.orderIndex.get(state.currentPath);
+  if (i === undefined) return;
+  const next = state.order[i + delta];
+  if (!next) return;
+  // Paging is lateral movement, not drilling in, so Back still means "out".
+  state.navStack = [];
+  openChapter(next);
+}
+
+/** Keep the collapsed panel honest about what's inside it. */
+function renderAnnotateStatus() {
+  const chips = chipsFor(recordFor(state.currentPath));
+  $('annotate-tags').innerHTML = chips;
+  $('annotate-dot').classList.toggle('hidden', !chips);
 }
 
 function renderNotes() {
@@ -296,6 +428,7 @@ async function mutate(path, fn) {
   state.overlay.set(path, next);
   await S.saveRecord(next);
   updateChangeIndicators();
+  if (path === state.currentPath) renderAnnotateStatus();
 }
 
 /* ------------------------------------------------------------------ settings */
@@ -493,17 +626,69 @@ function wireEvents() {
     });
   }
 
+  // Entering from a list starts a fresh trail — Back should return to the list.
   $('results').addEventListener('click', (e) => {
     const btn = e.target.closest('.result');
-    if (btn) openChapter(btn.dataset.path);
+    if (!btn) return;
+    state.navStack = [];
+    openChapter(btn.dataset.path);
   });
 
   $('changed-list').addEventListener('click', (e) => {
     const btn = e.target.closest('.changed-item');
-    if (btn) openChapter(btn.dataset.path);
+    if (!btn) return;
+    state.navStack = [];
+    openChapter(btn.dataset.path);
   });
 
-  $('btn-back').addEventListener('click', () => { renderResults(); show('search'); });
+  // Wikilinks: resolved ones drill in (and are remembered), dead ones hand
+  // the link text to search so a near-miss path is still one tap away.
+  $('ch-body').addEventListener('click', (e) => {
+    const link = e.target.closest('a.wikilink');
+    if (!link) return;
+    e.preventDefault();
+    const path = link.dataset.path;
+    if (path) {
+      openChapter(path, { push: true, anchor: link.dataset.anchor || '' });
+      return;
+    }
+    const term = link.dataset.search || '';
+    state.query = term;
+    $('q').value = term;
+    state.navStack = [];
+    renderResults();
+    show('search');
+    toast('No chapter matched that link — searched instead');
+  });
+
+  // Back walks the wikilink trail first, then leaves the chapter view.
+  $('btn-back').addEventListener('click', () => {
+    const previous = state.navStack.pop();
+    if (previous && state.chapters.has(previous)) {
+      openChapter(previous);
+      return;
+    }
+    renderResults();
+    show('search');
+  });
+
+  $('btn-annotate').addEventListener('click', () => {
+    const panel = $('annotate');
+    panel.open = true;
+    panel.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
+
+  $('btn-prev').addEventListener('click', () => step(-1));
+  $('btn-next').addEventListener('click', () => step(1));
+
+  document.addEventListener('keydown', (e) => {
+    if (!$('screen-chapter').classList.contains('active')) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+  });
 
   $('ch-flag').addEventListener('change', async (e) => {
     await mutate(state.currentPath, (rec) => O.setFlag(rec, e.target.checked));

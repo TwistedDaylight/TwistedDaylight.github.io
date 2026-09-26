@@ -69,23 +69,39 @@
       <div id="ch-title" class="topbar-title"></div>
       <div id="ch-folder" class="topbar-sub"></div>
     </div>
+    <button id="btn-annotate" class="annotate-btn" aria-label="Annotate this chapter">
+      <span aria-hidden="true">⚑</span> Annotate<span id="annotate-dot" class="dot hidden"></span>
+    </button>
   </div>
   <div class="scroll">
-    <div class="annotate">
-      <label class="flag-row">
-        <input type="checkbox" id="ch-flag">
-        <span class="flag-label">Potentially wrong</span>
-      </label>
-      <textarea id="ch-reason" class="reason-input" rows="2"
-                placeholder="Why does this look wrong? (flag reason)"></textarea>
-
-      <div id="ch-notes" class="notes"></div>
-      <div class="note-add">
-        <textarea id="ch-note-new" class="note-input" rows="2" placeholder="Add a note…"></textarea>
-        <button id="btn-add-note" class="btn btn-small">Add note</button>
-      </div>
-    </div>
     <article id="ch-body" class="markdown"></article>
+
+    <details id="annotate" class="annotate">
+      <summary class="annotate-summary">
+        <span class="annotate-caret" aria-hidden="true">▸</span>
+        <span class="annotate-heading">Annotations</span>
+        <span id="annotate-tags" class="annotate-tags"></span>
+      </summary>
+      <div class="annotate-body">
+        <label class="flag-row">
+          <input type="checkbox" id="ch-flag">
+          <span class="flag-label">Potentially wrong</span>
+        </label>
+        <textarea id="ch-reason" class="reason-input" rows="2"
+                  placeholder="Why does this look wrong? (flag reason)"></textarea>
+
+        <div id="ch-notes" class="notes"></div>
+        <div class="note-add">
+          <textarea id="ch-note-new" class="note-input" rows="2" placeholder="Add a note…"></textarea>
+          <button id="btn-add-note" class="btn btn-small">Add note</button>
+        </div>
+      </div>
+    </details>
+  </div>
+  <div class="chapter-nav">
+    <button id="btn-prev" class="page-btn" aria-label="Previous chapter">‹ Prev</button>
+    <span id="ch-position" class="page-pos"></span>
+    <button id="btn-next" class="page-btn" aria-label="Next chapter">Next ›</button>
   </div>
 </div>
 
